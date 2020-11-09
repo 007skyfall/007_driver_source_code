@@ -1,0 +1,314 @@
+【一】设备树
+     
+	设备树（Device Tree）是一种描述硬件的数据结构，在操作系统（OS）引导阶段进行设备初始化的时候，数据结构中
+	的硬件信息被检测并传递给操作系统。
+	
+	1. 设备树基本语法：
+	
+		/{			  --->>> 根节点
+			
+			node{     --->>> 根节点的子节点
+				
+				key = value;        --->>> 属性，键值对
+				...
+				child_node{         --->>> node节点的子节点
+					key = value;
+				};
+				...
+			};
+			...
+		};
+		
+		key	 :  属性名
+		value:  属性值
+		
+	2. 设备树描述键值对的语法：	
+
+		[1]. 字符串信息 
+			
+			compatible = "farsight,hqyj";
+			
+		[2]. 32位无符号整形数组
+			
+			word-array = <32 45 67 89>;
+			
+		[3]. 二进制数组
+		
+			bi-array = [0c 20 11 24]; 
+		
+		[4]. 字符数组
+		
+			string-list = "aaa" , "bbb" , "ccc";
+			
+	3. 节点名命名规范
+	
+		<name>[@<unit-address>]
+		
+		eg: gpio@101F3000
+		
+		名字是ASCII字符串(字母、数字、 "-"、等等构成)
+ 		最长可以是31个字符
+ 		一般应该以设备类型命名
+ 		unit-address一般的是设备地址
+
+	4. 节点别名
+	
+		/{												引用语法范例1：
+			aliases {                                   &demo{
+				
+				compatible = "xxx";                        ...
+			
+			};                                          };
+			                                            引用语法范例2：
+			...                                         /{
+			                                                reference-node{
+			demo:demo0@80000000{                       			 property=<&demo>;
+				...                                    			 ...
+			};                                         		 };
+															...
+			...                                          };
+		};
+	
+		节点名  ： demo0@80000000
+		节点路径： /demo0@80000000
+		节点别名： demo（等价/demo0@80000000）
+		
+		一个设备可能会使用到别的节点的内容，可以通过节点的别名来引用到其内容.
+		
+		引用的目的: 
+			
+			可能是合并两个节点的内容、 替换部分内容、或是使用部分内容
+			
+		
+		
+	5. 合并节点内容
+
+		一个硬件设备的部分信息不会变化，但是另一部分信息是有可能会变化的，就出现了节点内容合并。即：先编写好节点，
+		仅仅描述部分属性值；使用者后加一部分属性值。在同级路径下，节点名相同的“两个”节点实际是一个节点
+		
+		
+		eg：
+		
+		/*参考板已写好的节点属性*/
+		
+		/{
+			node{
+				property1 = value1;									/{
+			};                                                      	node{
+		}；                                                         		property1 = value1;
+											=====等价于=====>>>>>   		property2 = value2;
+		/*移植者添加的节点属性*/                                    	};
+		                                                            };
+		/{
+			node{
+				property2 = value2;
+			};
+		};
+		
+		
+	
+	6. 默认意义的属性：
+	
+		[1]. 设备树语法中已经定义好的，具有通用规范意义的属性
+			
+			如果是设备信息和驱动分离框架的设备节点，则能够在内核初始化找到节点时候，自动解析生成相应的设备信息。
+		
+			常见属性的有： compatible、地址address、中断interrupt
+			
+		[2]. ARM Linux内核定义好的，一类设备通用的有默认意义的属性
+		
+			不能被内核自动解析生成相应的设备信息，但是内核已经编写了相应的解析提取函数。
+		
+			常见属性的有： MAC地址、 GPIO、 clock ...
+		
+	7. compatible属性
+		
+		用于匹配设备节点和设备驱动的属性，规则是驱动设备ID表中的compatible域的值（字符串），和设备树中设备节点中的
+		compatible属性值完全一致。
+		
+		compatible=“厂商名,设备名” ;
+		
+	8. 地址属性
+	
+		#address-cells：描述子节点reg属性值的地址表中首地址cell数量
+ 		#size-cells   ：描述子节点reg属性值的地址表中地址长度cell数量
+		
+		eg：
+		
+			reg：描述地址表
+		
+			/{
+				parent-node{
+					#address-cells = <1>;
+					#size-cells = <1>;
+					
+					...
+					
+					son-node{
+						reg = <addr1 len1 [addr2 len2  ...] >;
+						...
+					};
+				};
+			};
+		
+	9. 中断属性
+	
+		Documentation/devicetree/bindings/arm/gic.txt
+
+		
+		interrupt-controller 一个空属性用来声明这个node接收中断信号
+		
+		#interrupt-cells 这是中断控制器节点的属性，用来标识这个控制器需要几个单位做中断描述符
+ 		
+		interrupt-parent 标识此设备节点属于哪一个中断控制器，如果没有设置这个属性，会自动依附父节点的
+
+		interrupts 一个中断标识符列表，表示每一个中断输出信号
+
+		eg：
+		
+		如果父节点的#interrupt-cells的值是3，则子节点的interrupts一个cell三个32bits整型值：<中断域 中断 触发方式>
+		
+		中断域：
+			0 for SPI interrupts, 1 for PPI interrupts.
+		
+		中断号：
+		
+		触发方式：
+			
+			 1 = low-to-high edge triggered    // 上升沿
+			 2 = high-to-low edge triggered    // 下降沿
+			 4 = active high level-sensitive   // 高电平                                                                                                                                                                                                              
+			 8 = active low level-sensitive    // 低电平
+			 
+		  gic: interrupt-controller@10490000 {
+				compatible = "arm,cortex-a9-gic";
+				#interrupt-cells = <3>;
+				interrupt-controller;                                                                                    
+				reg = <0x10490000 0x1000>, <0x10480000 0x100>;
+			
+				gpx0: gpx0 {
+					gpio-controller;
+					#gpio-cells = <2>;
+		
+					interrupt-controller;
+					interrupt-parent = <&gic>;
+					interrupts = <0 16 0>, <0 17 0>, <0 18 0>, <0 19 0>,
+								 <0 20 0>, <0 21 0>, <0 22 0>, <0 23 0>;
+					#interrupt-cells = <2>;
+				};
+			};
+			
+		如果父节点的#interrupt-cells的值是2，则子节点的interrupts一个cell两个32bits整型值：中断和触发方式。
+
+		ethernet@5000000 {
+               compatible = "davicom,dm9000";
+               reg = <0x5000000 0x2 0x5000004 0x2>;
+               interrupt-parent = <&gpx0>;
+               interrupts = <6 4>;                    --->>> 6 指的是父节点中&gpx0 的 interrupts 的第六个                                                                      
+               davicom,no-eeprom;
+               mac-address = [00 0a 2d a6 55 a2];
+        };
+
+	10. GPIO属性
+	
+		gpio-controller：说明该节点描述的是一个gpio控制器
+ 		#gpio-cells：描述gpio使用节点的属性一个cell的内容
+
+		属性名=<&引用GPIO节点别名 GPIO标号 工作模式>;
+		
+			
+【二】设备树驱动编程
+     1. 添加一个设备树节点  vi exynos4412-fs4412.dts
+	    xxx{
+			compatible = "fs4412,xxx";   
+			a = "hello";
+			b = <0x12345678>;
+		};
+		// 节点路径:  /xxx
+		xxx ：节点的名称
+		compatible ：设备树匹配表，"厂商,节点名称" ， 此字符串必须与驱动中字符串保持严格一致。
+		a ：健值对名称
+		"hello"  ：健值对的值
+		
+	 2. 编译设备树，在内核顶层目录下
+	    make  dtbs
+		
+	 3. 将编译好的设备树文件，拷贝/tftpboot 
+	    cp  arch/arm/boot/dts/exynos4412-fs4412.dtb    /tftpboot
+		
+	 4. 设备树的驱动编程
+	 
+【三】设备树驱动编程的API 函数接口
+    		 
+	设备节点：
+	struct device_node {
+		const char *name;   // 节点的名称
+		const char *type;
+		const char *full_name;
+		struct	property *properties;  // 属性健值对
+		...
+	};
+
+    属性健值对：
+	struct property {
+		char	*name;   // 键的名称
+		int	length;
+		void	*value;  // 键的值
+		struct property *next;  // 单链表
+		unsigned long _flags;
+		unsigned int unique_id;
+	};
+	
+	struct device_node *of_find_node_by_path(const char *path)
+     功能：通过节点的路径，查找到节点
+	 参数：path  节点的路径
+	 返回值：成功  设备节点的地址
+	         失败   NULL
+	
+    struct property *of_find_property(const struct device_node *np,
+				  const char *name,int *lenp)
+    功能：已知设备节点的地址，根据键的名称，查找出键值
+	参数：np    设备节点的地址
+	      name   键的名称
+		  lenp   键的长度
+	返回值：成功 属性健值对的指针
+	        出错 NULL
+			
+	int of_property_read_string(struct device_node *np, const char *propname,
+				const char **out_string)
+	功能：已知字符串属性健值对的名称，得到字符串的值
+	参数：np   设备节点的地址
+	      propname  属性健值对的名称
+		  out_string  填充字符串的值
+	返回值：成功0，出错 -1
+	
+实例：
+    led{
+        compatible = "samsung,led";
+        led1 = <&gpx2 7 0>;  -->of_get_named_gpio
+        led2 = <&gpx1 0 0>; 
+        led3 = <&gpf3 4 0>; 
+        led4 = <&gpf3 5 0>; 
+    };  
+    demo@06000000{
+        compatible = "farsight,demo";
+        reg = <0x06000000 1024 0x07000000 1024>;
+        interrupt-parent = <&gpx1>;
+        interrupts = <6 4>, <7 4>;
+        kval=<0x12345678>;
+        str ="hello world";
+    };
+
+	fs4412-adc@126c0000{
+		compatible = "fs4412,adc";
+		reg = <0x126c0000 0x20>;
+		interrupt-parent = <&combiner>;
+		interrupts = <10 3>;
+	};
+	
+	fs4412-key {
+		compatible = "fs4412,key";
+		interrupt-parent = <&gpx1>;
+		interrupts = <1 2>, <2 2>;
+	};
+

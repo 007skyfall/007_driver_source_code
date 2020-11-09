@@ -1,0 +1,337 @@
+【1】复习
+	1.字符设备驱动的创建（一个函数）
+		register_chrdev(major,NAME,&fops);
+		unregister_chrdev(major,NAME);
+	2.ioctl函数
+		         ioctl(fd,request);
+		user:	 ioctl(fd,request,100);
+		------------------------------------------
+		kernel:  fops:
+				unlocked_ioctl(,cmd,args);
+				{
+					switch(cmd){
+						case LED0_OP:if(args==0){
+							
+						}else{
+							
+						}break;
+						
+					}
+					
+				}
+				
+		命令码的封装：32数字
+			dir  size type nr
+			 2    14   8   8
+
+			dir :表示用户读写的方向
+			size:根据用户传递的第三个参数的类型决定的，
+				  sizeof(int) sizeof(char *) sizeof(struct aa)
+			type:写一个字符  'a'  'k'
+			nr  :序号，同类中的第几个命令码
+			
+			_IO  _IOR   _IOW   _IOWR
+			 
+		
+			#define LED0_OP _IOWR('a',0,struct aa)
+		
+	3.自动创建设备节点
+		udev/mdev
+		
+		cls = class_create(THIS_MODULE,"目录的名字");
+		if(IS_ERR(cls)){
+			return PTR_ERR(cls);
+		}
+		
+		dev = device_create(cls,NULL,MKDEV(major,i),NULL,"hello%d",i);
+		if(IS_ERR(dev)){
+			return PTR_ERR(dev);
+		}
+		
+	作业：
+	1.在驱动中创建4个设备节点，操作hello0，led0
+	
+		hello0  hello1  hello2  hello3  <---inode
+	---------------------------------------------------------
+		hello.c驱动
+	---------------------------------------------------------	
+		led0   led1    led2     led3 
+	
+【2】字符设备驱动框架原理
+		sudo mknod /dev/hello c 250 0
+user:	open("/dev/hello",O_RDWR);   read(fd,buf,sizeof(buf)) write close
+				|
+			设备文件-->ls -i-->inode号<------文件系统分配的
+		                          |
+----------------------------------|-----------------------	
+kernel:	                          |
+				-------------------
+				|
+			struct inode{ <----记录文件信息的结构体
+				umode_t         i_mode;
+                kuid_t          i_uid;
+                kgid_t          i_gid;
+				unsigned long       i_ino;
+				dev_t           i_rdev;
+
+				union {
+					struct pipe_inode_info  *i_pipe;
+					struct block_device *i_bdev;
+					struct cdev     *i_cdev;<-----字符设备驱动
+				};  
+			}
+		
+			 |
+			\/
+	------cdev1-------cdev2---------------cdev3-----------....
+			|
+			fops{
+				open
+				read
+				write
+				ioctl
+				release
+			}
+		
+		
+	进程结构体：
+		./a.out--->进程-->task_struct
+		struct task_struct{ <-----进程的结构体
+			volatile long state;<-进程的状态 ps(命令可以查看)
+			int prio, static_prio, normal_prio;
+			const struct sched_class *sched_class;
+			pid_t pid;     <---进程号
+			struct files_struct *files;
+					|
+					->struct file * fd_array[NR_OPEN_DEFAULT];
+		}
+		
+		fd是何时产生的？
+		用户调用open函数就会产生一个fd对象，fd就是
+		fd_array[fd]的数组下标。通过fd就可以等到
+		struct file结构体
+		
+		只要应用层调用open，在内核中就会产一个struct file结构体。
+		struct file {
+			struct inode        *f_inode;     <-文件中的inode
+			const struct file_operations    *f_op;
+		}
+
+		
+		fd--->fd_array[fd]-->struct file--->fops-->read  write close
+
+		
+【3】函数调用的关系
+	user:     open     read     write     release
+	----------------------------(系统调用 5)swi--------
+	   |  vfs：	linux-3.14.1/arch/arm/kernel$ vi calls.S
+	   |	sys_open  sys_read  sys_write
+			vi -t sys_open
+			SYSCALL_DEFINE3(open, const char __user *, filename
+					, int, flags, umode_t, mode)
+			#define SYSCALL_DEFINE3(name, ...) 
+				SYSCALL_DEFINEx(3, _open, __VA_ARGS__)<--##代表字符串拼接
+                                                      <-- #2将数字转化为字符
+	   
+	   #define __SYSCALL_DEFINEx(x, name, ...)              
+				long sys_open(__MAP(x,__SC_DECL,__VA_ARGS__))
+	   
+	   do_sys_open(AT_FDCWD, filename, flags, mode);
+		do_tmpfile(dfd, pathname, nd, flags, op, file, &opened);
+			path_openat(dfd, pathname, &nd, op, flags | LOOKUP_RCU);
+				finish_open(file, nd->path.dentry, NULL, opened);
+					do_dentry_open(file, open, current_cred());
+					   open = f->f_op->open;
+						if (open) {
+							error = open(inode, f);
+	   
+	   |---------------------------------------------
+kernel |  : fops:
+	   |	driver_open   driver_read  driver_write...
+	
+		
+		
+【4】驱动是如何被执行起来的？
+	1.驱动编译到内核中
+	1.1驱动代码将入口告诉给内核
+		module_init(demo_init)
+		  #define module_init(x)  __initcall(x);
+		  #define __initcall(fn) device_initcall(fn)
+		  #define device_initcall(fn)     __define_initcall(fn, 6)
+		  
+	#define __define_initcall(fn, id) 
+		static initcall_t  __initcall_demo_init_6 = fn
+		//__section__(".initcall6.init")) 
+		定义一个__initcall_demo_init_6变量，它是函数指针类型
+		将fn赋值给这个变量，这个变量是在initcall6.init段中
+		
+	vmlinux.lds --->内核的链接脚本
+
+	linux-3.14.1$ vi ./arch/arm/kernel/vmlinux.lds
+	 __initcall6_start = .; *(.initcall6.init)
+	initcall6这段中存放全是驱动的入口地址。
+	
+	1.2内核启动的时候如果解析并只执行这些函数的
+		main.c---->start_kernel
+			rest_init();
+		
+			kernel_thread(kernel_init, NULL, CLONE_FS | CLONE_SIGHAND);
+			pid = kernel_thread(kthreadd, NULL, CLONE_FS | CLONE_FILES);
+			
+			kernel_init:线程体
+				kernel_init_freeable();
+					do_basic_setup();
+						do_initcalls();
+		static initcall_t *initcall_levels[] __initdata = {
+			__initcall0_start,
+			__initcall1_start,
+			__initcall2_start,
+			__initcall3_start,
+			__initcall4_start,
+			__initcall5_start,
+			__initcall6_start,
+			__initcall7_start,
+			__initcall_end,
+		};		
+		
+		for (level = 0; level < ARRAY_SIZE(initcall_levels) - 1; level++)
+			do_initcall_level(level);<---level是哪个段
+		
+		for (fn = initcall_levels[level]; fn < initcall_levels[level+1]; fn++)
+			do_one_initcall(*fn);
+			ret = fn();
+		
+	2.驱动编译成模块
+		insmod xxx.ko
+			|
+		init_module
+	--------|-----------------------------------	
+		sys_init_module
+		
+	SYSCALL_DEFINE3(init_module, void __user *, umod,
+        unsigned long, len, const char __user *, uargs)
+	
+	 err = copy_module_from_user(umod, len, &info);
+			info->hdr = vmalloc(info->len);
+				copy_from_user(info->hdr, umod, info->len)
+		load_module(&info, uargs, 0);
+			do_init_module(mod);
+			ret = do_one_initcall(mod->init);
+				ret = fn();		
+-----------------------------------------------------------------------
+【1】linux内核中并发和竞态的解决方法
+	产生的条件:
+		多个进程同时访问同一块临界资源。此时竞态就会产生。
+	
+	产生的根本原因：
+		1.多核cpu（smp）,公用同一个系统总线，同时执行
+		2.对于单核cpu来说，如果内核支持抢占
+		3.中断和进程间也会产生竞态
+		4.中断和更高优先级中断间
+		
+	解决竞态的方法：
+		1.顺序执行
+		2.互斥执行
+			2.1中断屏蔽(了解)
+				只适用于单核cpu,工作在中断上下文，保证保护的临界资源
+				尽可能的小，否者就会出现用户数据的丢失或者内核的崩溃。
+				
+				local_irq_disable(); //屏蔽中断
+					//临界资源
+				local_irq_enable();  //开启终端
+				
+			2.2自旋锁（重点）
+				针对多核cpu设计的，如果对于单核cpu来说，如果内
+				核支持抢占，自旋锁也适用，如果对于单核cpu不支
+				持抢占，自旋锁就是一个空操作。
+				
+				当一个进程获取到自旋锁之后，另外一个进程也想或
+				者这个锁，此时第二个进程处于自旋状态。
+				
+			特点：
+				1.自旋锁工作中断上下文（也可以在进程上下文中使用）
+				2.自旋锁可能产生死锁（在同一进程中想多次获取同一把锁）
+				3.自旋锁保护的临近资源尽可能的小，在自旋锁上锁期间
+				不能有msleep, 不能有copy_from_user copy_to_user函数
+				如果使用了可能到时用户数据的丢失或者内核的崩溃。
+				4.在自旋状态下需要消耗cpu资源
+				5.在自旋锁上锁的时候会关闭抢占
+				
+			API:
+				spinlock_t lock;             定义一把锁
+				spin_lock_init(&lock);       初始化锁
+				spin_lock(spinlock_t *lock)  上锁
+				spin_unlock(spinlock_t *lock)解锁
+			
+			2.3信号量 （重点）
+				一个进程获取到锁之后，另外一个进程也想或者这个锁
+				此时它处于休眠状态，休眠状态是不需要消耗cpu资源的。
+				工作在进程上下文。保护临界资源可以很大，甚至里面可
+				以有休眠的操作。
+				
+				API:
+					struct semaphore sem; //定义
+					sema_init(struct semaphore *sem, int val) //初始化
+					//val代表信号量可以被获取多少次，一般写1,可以实现互斥效果
+					down(struct semaphore *sem); //上锁
+					int down_trylock(struct semaphore *sem);//成功返回0，失败返回非0
+					up(struct semaphore *sem);   //解锁
+
+			2.4互斥体 (掌握)
+				API:
+					struct mutex lock; //定义
+					mutex_init(&lock)  //互斥体的初始化
+					mutex_lock(&lock)	   //加锁
+					mutex_unlock(&lock)	   //解锁锁
+					int  mutex_trylock(struct mutex *lock) //尝试获取锁
+					//成功返回非0 ，失败返回0
+					
+				
+			2.5原子操作(掌握)(就是一个条件变量)
+				API:
+					atomic_t lock; //定义
+					ATOMIC_INIT(i) //初始化 
+					atomic_inc_and_test(v)
+					//加1之后和0比较，如果结果为0，表示获取锁成功了
+					//否则获取锁失败了。
+					atomic_dec(v)
+					
+					atomic_dec_and_test(v)
+					//减1之后和0比较，如果结果为0，表示获取锁成功了（返回值是真）
+					//否则获取锁失败了。
+					atomic_inc(v)
+
+	练习：
+		信号量，互斥体，原子操作，
+
+
+【2】IO模型
+	1.非阻塞
+	
+	2.阻塞
+	
+	3.IO多路复用
+	
+	4.信号驱动IO
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		
+		
+		
+		
+		
+		
+		
+		

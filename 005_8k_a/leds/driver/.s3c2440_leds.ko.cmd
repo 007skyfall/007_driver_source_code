@@ -1,0 +1,1 @@
+cmd_/home/student/driver/leds/driver/s3c2440_leds.ko := arm-linux-ld -EL -r  -T /home/student/linux-2.6.32.2/scripts/module-common.lds --build-id -o /home/student/driver/leds/driver/s3c2440_leds.ko /home/student/driver/leds/driver/s3c2440_leds.o /home/student/driver/leds/driver/s3c2440_leds.mod.o

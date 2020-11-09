@@ -1,0 +1,1 @@
+cmd_/home/wangj/8-super_man/lesson3/5.wait_queue_head_t/demo.ko := ld -r -m elf_i386 -T /usr/src/linux-headers-3.5.0-23-generic/scripts/module-common.lds --build-id  -o /home/wangj/8-super_man/lesson3/5.wait_queue_head_t/demo.ko /home/wangj/8-super_man/lesson3/5.wait_queue_head_t/demo.o /home/wangj/8-super_man/lesson3/5.wait_queue_head_t/demo.mod.o

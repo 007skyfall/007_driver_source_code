@@ -1,0 +1,125 @@
+1.插入usb鼠标之后显示如下信息：
+[   81.110000] usb 1-3.2: new full-speed USB device number 3 using exynos-ehci
+[   81.240000] input: Compx 2.4G Receiver as /devices/12580000.ehci/usb1/1-3/1-3.2/1-3.2:1.0/0003:1D57:FA60.0001/input/input1
+[   81.250000] hid-generic 0003:1D57:FA60.0001: input: USB HID v1.00 Keyboard [Compx 2.4G Receiver] on usb-12580000.ehci-3.2/input0
+[   81.275000] input: Compx 2.4G Receiver as /devices/12580000.ehci/usb1/1-3/1-3.2/1-3.2:1.1/0003:1D57:FA60.0002/input/input2
+[   81.290000] hid-generic 0003:1D57:FA60.0002: input: USB HID v1.00 Mouse [Compx 2.4G Receiver] on usb-12580000.ehci-3.2/input1
+[   81.310000] input: Compx 2.4G Receiver as /devices/12580000.ehci/usb1/1-3/1-3.2/1-3.2:1.2/0003:1D57:FA60.0003/input/input3
+[   81.320000] hid-generic 0003:1D57:FA60.0003: input: USB HID v1.00 Device [Compx 2.4G Receiver] on usb-12580000.ehci-3.2/input2
+
+2.拔出usb鼠标：
+usb 1-3.2: USB disconnect, device number 3
+
+3.使用lsusb命令查看信息
+Bus 001 Device 003: ID 1d57:fa60
+
+
+4.去掉原来驱动的支持
+  Device Drivers  ---> 
+	  HID support  ---> 
+		< >   Generic HID driver    //去掉这一项
+		 USB HID support  ---> 
+			< > USB HID transport layer //去掉这一项
+5.选中usb控制器选项
+  Device Drivers  ---> 
+	[*] USB support  --->   
+	<*>   Support for Host-side USB 
+	<*>     EHCI HCD (USB 2.0) support 
+	<*>     EHCI support for Samsung S5P/EXYNOS SoC Series  
+	USB Physical Layer drivers  --->  
+       <*> Samsung USB 2.0 PHY controller Driver                                         
+       <*> Samsung USB 3.0 PHY controller Driver   
+	 
+usb设备枚举过程
+	1、usb设备连接至hub端口 
+	2、hub检测usb_device是否接入 
+	3、hub端口产生设备连接/断开事件，利用自己的中断端点上报至HOST， 
+	host发送get_port_status请求，获取状态改变确切含义 
+	4、hub回复host设备速度类型 
+	5、等待usb_device设备电源稳定后，host向hub发送set_port_feature 
+	复位该新连接到hub的端口 
+	6、检测设备是否为高速设备，如果是则切换高速，否则保持全速 
+	7、host发送get_port_status查询是否复位成功？复位成功后，usb_device处于默认状态， 
+	设备的地址及端点号此时默认为0，准备接受主机请求 
+	8、host发送get_descriptor获取设备描述符[主要是获取最大包长度]，hub再次复位设备端口， 
+	使设备进入确定的状态； 
+	9、host给设备分配地址set_address； 
+	10、主机获取设备信息，get_descriptor 
+	11、announce_device声明找到设备，添加设备device_add，匹配驱动usb_device_match 
+	匹配上则执行device_bind_driver 
+	12、驱动为设备确定配置set_configuration
+	
+	
+涉及到的结构体
+	1.设备描述结构体
+	struct usb_device_descriptor {
+		__u8  bLength;                //描述符的长度
+		__u8  bDescriptorType;        //描述符的类型编号
+
+		__le16 bcdUSB;                //usb的版本
+		__u8  bDeviceClass;           //usb的设备类
+		__u8  bDeviceSubClass;        //usb的设备子类
+		__u8  bDeviceProtocol;        //usb设备协议
+		__u8  bMaxPacketSize0;        //端点0的最大包的个数
+		__le16 idVendor;           //厂商编号
+		__le16 idProduct;          //产品编号
+		__le16 bcdDevice;          //设备出厂编号
+		__u8  iManufacturer;       //描述厂商字符串的索引
+		__u8  iProduct;            //描述产品字符串的索引
+		__u8  iSerialNumber;       //描述串口号的索引
+		__u8  bNumConfigurations;  //配置的个数
+	} __attribute__ ((packed));
+
+	2.配置结构体
+	struct usb_config_descriptor {
+		__u8  bLength;                //描述符的长度
+		__u8  bDescriptorType;        //描述符的类型编号
+
+		__le16 wTotalLength;          //配置所返回的所有数据的大小
+		__u8  bNumInterfaces;         //配置所支持的接口的个数
+		__u8  bConfigurationValue;    //set_configuration命令需要的参数值
+		__u8  iConfiguration;         //描述配置的字符串索引
+		__u8  bmAttributes;           //供电模式的选择
+		__u8  bMaxPower;              //支持的最大的电流
+	} __attribute__ ((packed));
+
+	3.接口结构体
+	struct usb_interface_descriptor {
+		__u8  bLength;                //描述符的长度
+		__u8  bDescriptorType;        //描述符的类型编号
+
+		__u8  bInterfaceNumber;       //接口的编号
+		__u8  bAlternateSetting;      //备用的接口编号
+		__u8  bNumEndpoints;          //终端节点的个数，不包含节点0
+		__u8  bInterfaceClass;        //接口类型
+		__u8  bInterfaceSubClass;     //接口的子类
+		__u8  bInterfaceProtocol;     //接口的协议
+		__u8  iInterface;             //描述接口的字符串索引
+	} __attribute__ ((packed));
+
+	4.终端节点结构体
+	struct usb_endpoint_descriptor {
+		__u8  bLength;                //描述符的长度
+		__u8  bDescriptorType;        //描述符的类型编号
+
+		__u8  bEndpointAddress;      //终端节点的地址，0~3位是端点号，第七位是方向（0-out,1-in）
+		__u8  bmAttributes;          //端点的属性：bit[0:1]的值00控制，01为同步，02为批量，03中断传输  
+		__le16 wMaxPacketSize;       //本节点的最大传输的包的个数
+		__u8  bInterval;             //轮询数据发送的时间间隔
+		__u8  bRefresh;              
+		__u8  bSynchAddress;
+	} __attribute__ ((packed));
+		
+	5.字符串描述符	
+	struct usb_string_descriptor {
+		__u8  bLength;
+		__u8  bDescriptorType;
+
+		__le16 wData[1];		/* UTF-16LE encoded */
+	} __attribute__ ((packed));
+	
+	
+	
+	
+	
+	

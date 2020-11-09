@@ -1,0 +1,1 @@
+cmd_/home/student/driver/memdev/driver/memdev.ko := arm-linux-ld -EL -r  -T /home/student/linux-2.6.32.2/scripts/module-common.lds --build-id -o /home/student/driver/memdev/driver/memdev.ko /home/student/driver/memdev/driver/memdev.o /home/student/driver/memdev/driver/memdev.mod.o

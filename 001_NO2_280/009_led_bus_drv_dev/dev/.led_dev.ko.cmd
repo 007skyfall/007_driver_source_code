@@ -1,0 +1,1 @@
+cmd_/home/ubuntu/smb_share/009_led_bus_drv_dev/dev/led_dev.ko := /home/ubuntu/itop/arm-2009q3/bin/arm-none-linux-gnueabi-ld -EL -r  -T /home/ubuntu/itop/linux_3.0/scripts/module-common.lds --build-id  -o /home/ubuntu/smb_share/009_led_bus_drv_dev/dev/led_dev.ko /home/ubuntu/smb_share/009_led_bus_drv_dev/dev/led_dev.o /home/ubuntu/smb_share/009_led_bus_drv_dev/dev/led_dev.mod.o

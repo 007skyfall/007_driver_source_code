@@ -1,0 +1,3 @@
+./nosem_test 1 &
+./nosem_test 2 &
+./nosem_test 3 &

@@ -1,0 +1,2 @@
+/home/mint/git/itop4412_dirver_20190529-master/003_create_device_node/create_device_node.ko
+/home/mint/git/itop4412_dirver_20190529-master/003_create_device_node/create_device_node.o

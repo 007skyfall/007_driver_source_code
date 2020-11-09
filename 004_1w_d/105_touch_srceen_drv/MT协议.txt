@@ -1,0 +1,532 @@
+可以在内核目录中找到这个文件：Documentation/input/multi-touch-protocol.txt
+
+----------------------------------------------------------------------------------------------------------------------
+
+[en] Multi-touch (MT) Protocol
+[zh] 多点触摸(MT)协议
+-------------------------
+[en]    Copyright (C) 2009-2010    Henrik Rydberg <rydberg@euromail.se>
+
+[en]Introduction
+[zh]介绍
+------------
+
+[en] In order to utilize the full power of the new multi-touch and multi-user
+[en] devices, a way to report detailed data from multiple contacts, i.e.,
+[en] objects in direct contact with the device surface, is needed.  This
+[en] document describes the multi-touch (MT) protocol which allows kernel
+[en] drivers to report details for an arbitrary number of contacts.
+[zh] 为了发挥新出现的多点触摸设备、多用户同时操作设备的全部能力，
+[zh] 需要一种能够报告多个触摸点的数据的方法。
+[zh] 本文档介绍的内容是多点触摸协议，它允许内核驱动程序上报任意多个触摸点的信息。
+[zh] 译者注：多点触摸设备，比如iphone4的触摸屏。
+[zh] 译者注：多用户操作设备，比如电子黑板的书写笔，允许多个用户各用一支笔，并且同时各写各的。
+
+[en] The protocol is divided into two types, depending on the capabilities of the
+[en] hardware. For devices handling anonymous contacts (type A), the protocol
+[en] describes how to send the raw data for all contacts to the receiver. For
+[en] devices capable of tracking identifiable contacts (type B), the protocol
+[en] describes how to send updates for individual contacts via event slots.
+[zh] 依据硬件设备的能力，本协议分成两种类型。
+[zh] type A：触摸点不能被区分和追踪，本协议描述如何上报这些原始数据给监听者。
+[zh] type B：硬件有能力追踪并区分触摸点，本协议描述如何通过slot更新某一个触摸点的信息。
+
+[en]Protocol Usage
+[zh]协议的使用方法
+--------------
+
+[en] Contact details are sent sequentially as separate packets of ABS_MT
+[en] events. Only the ABS_MT events are recognized as part of a contact
+[en] packet. Since these events are ignored by current single-touch (ST)
+[en] applications, the MT protocol can be implemented on top of the ST protocol
+[en] in an existing driver.
+[zh] 触摸点的信息是通过一串ABS_MT系列的消息上报的。
+[zh] 只有ABS_MT系列的消息是当做多点触摸消息识别的，
+[zh] 因为目前只对应了单点触摸（ST）的应用程序会忽略掉这些消息，
+[zh] 所以已有的驱动程序可以在单点触摸协议之上独立实现多点触摸协议。
+[zh] -------------------------
+[zh] 在 <linux/input.h> 中定义的：
+[zh] #define ABS_MT_SLOT         0x2f    /* MT slot being modified */
+[zh] #define ABS_MT_TOUCH_MAJOR  0x30    /* Major axis of touching ellipse */
+[zh] #define ABS_MT_TOUCH_MINOR  0x31    /* Minor axis (omit if circular) */
+[zh] #define ABS_MT_WIDTH_MAJOR  0x32    /* Major axis of approaching ellipse */
+[zh] #define ABS_MT_WIDTH_MINOR  0x33    /* Minor axis (omit if circular) */
+[zh] #define ABS_MT_ORIENTATION  0x34    /* Ellipse orientation */
+[zh] #define ABS_MT_POSITION_X   0x35    /* Center X ellipse position */
+[zh] #define ABS_MT_POSITION_Y   0x36    /* Center Y ellipse position */
+[zh] #define ABS_MT_TOOL_TYPE    0x37    /* Type of touching device */
+[zh] #define ABS_MT_BLOB_ID      0x38    /* Group a set of packets as a blob */
+[zh] #define ABS_MT_TRACKING_ID  0x39    /* Unique ID of initiated contact */
+[zh] #define ABS_MT_PRESSURE     0x3a    /* Pressure on contact area */
+[zh] #define ABS_MT_DISTANCE     0x3b    /* Contact hover distance */
+
+[en] Drivers for type A devices separate contact packets by calling
+[en] input_mt_sync() at the end of each packet. This generates a SYN_MT_REPORT
+[en] event, which instructs the receiver to accept the data for the current
+[en] contact and prepare to receive another.
+[zh] 对于type A设备的驱动程序，在上报某个触摸点信息的最后，
+[zh] 通过调用input_mt_sync()隔开不同触摸点的信息。
+[zh] 调用input_mt_sync()会产生一个SYN_MT_REPORT消息，
+[zh] 这个消息会触发接受者获取到某一个触摸点的信息，并准备接收下一个触摸点信息。
+
+[en] Drivers for type B devices separate contact packets by calling
+[en] input_mt_slot(), with a slot as argument, at the beginning of each packet.
+[en] This generates an ABS_MT_SLOT event, which instructs the receiver to
+[en] prepare for updates of the given slot.
+[zh] 对于type B设备的驱动程序，在开始上报某个触摸点信息的时候，
+[zh] 调用input_mt_slot()用于区分是哪一个触摸点的信息，传递slot作为参数。
+[zh] 通过调用input_mt_slot()会产生一个SYN_MT_REPORT消息，
+[zh] 这个消息告诉接收者正在针对哪个slot更新信息。
+
+[en] All drivers mark the end of a multi-touch transfer by calling the usual
+[en] input_sync() function. This instructs the receiver to act upon events
+[en] accumulated since last EV_SYN/SYN_REPORT and prepare to receive a new set
+[en] of events/packets.
+[zh] 驱动程序通常调用input_sync()标示多点触摸信息传输结束。
+[zh] 调用input_sync()会触发接收者处理上次input_sync()到这次input_sync()之间累积的所有消息。
+[zh] 并让接收者准备下一次接收。
+
+[en] The main difference between the stateless type A protocol and the stateful
+[en] type B slot protocol lies in the usage of identifiable contacts to reduce
+[en] the amount of data sent to userspace. The slot protocol requires the use of
+[en] the ABS_MT_TRACKING_ID, either provided by the hardware or computed from
+[en] the raw data [5].
+[zh] type B协议和type A协议相比，最大的区别是能够识别某一个触摸点，
+[zh] 因此能够减少发送给用户空间的数据。
+[zh] 要使用slot 区分触摸点，需要使用ABS_MT_TRACKING_ID 这个消息，
+[zh] 这个ID可以是来自于硬件的，也可以是从原始数据计算得来的。
+
+[en] For type A devices, the kernel driver should generate an arbitrary
+[en] enumeration of the full set of anonymous contacts currently on the
+[en] surface. The order in which the packets appear in the event stream is not
+[en] important.  Event filtering and finger tracking is left to user space [3].
+[zh] type A设备的驱动程序，需要一次性将当前触摸屏上的所有触摸点的信息全部上报。
+[zh] 上报消息的顺序并不重要，因为消息的过滤和触摸点的跟踪是在用户空间处理的。
+
+[en] For type B devices, the kernel driver should associate a slot with each
+[en] identified contact, and use that slot to propagate changes for the contact.
+[en] Creation, replacement and destruction of contacts is achieved by modifying
+[en] the ABS_MT_TRACKING_ID of the associated slot.  A non-negative tracking id
+[en] is interpreted as a contact, and the value -1 denotes an unused slot.  A
+[en] tracking id not previously present is considered new, and a tracking id no
+[en] longer present is considered removed.  Since only changes are propagated,
+[en] the full state of each initiated contact has to reside in the receiving
+[en] end.  Upon receiving an MT event, one simply updates the appropriate
+[en] attribute of the current slot.
+[zh] type B设备的驱动程序，需要给已经识别的触摸点分配一个slot，
+[zh] 并且用这个slot上报这个触摸点的变化信息。
+[zh] 通过修改slot的ABS_MT_TRACKING_ID，可以实现新增加、替换，去除触摸点。
+[zh] 非负数的 ID 被认为是触摸点， -1 的 ID被认为是未使用的slot。
+[zh] 一个以前不存在的 ID 出现了表示是一个新的，一个 ID 不存在了表示 删除了。
+[zh] 因为只有变化的信息被上报，因此每一个触摸点的完整信息必须放在接收端进行维护。
+[zh] 根据接收到的MT（MultiTouch）消息，应用程序更新当前slot的相关属性。
+
+
+[en] Some devices identify and/or track more contacts than they can report to the
+[en] driver.  A driver for such a device should associate one type B slot with each
+[en] contact that is reported by the hardware.  Whenever the identity of the
+[en] contact associated with a slot changes, the driver should invalidate that
+[en] slot by changing its ABS_MT_TRACKING_ID.  If the hardware signals that it is
+[en] tracking more contacts than it is currently reporting, the driver should use
+[en] a BTN_TOOL_*TAP event to inform userspace of the total number of contacts
+[en] being tracked by the hardware at that moment.  The driver should do this by
+[en] explicitly sending the corresponding BTN_TOOL_*TAP event and setting
+[en] use_count to false when calling input_mt_report_pointer_emulation().
+[en] The driver should only advertise as many slots as the hardware can report.
+[en] Userspace can detect that a driver can report more total contacts than slots
+[en] by noting that the largest supported BTN_TOOL_*TAP event is larger than the
+[en] total number of type B slots reported in the absinfo for the ABS_MT_SLOT axis.
+[zh] 一些设备识别或者追踪的触摸点比它报告给驱动程序它能够识别的要多。
+[zh] 这些设备的驱动应该将每一个触摸点上报成 type B类型的slot信息。
+[zh] 一旦某一个slot关联的触摸点的ID发生变化，
+[zh] 驱动程序应该改变这个slot的ABS_MT_TRACKING_ID让slot变为无效。
+[zh] 如果硬件设备告诉驱动程序他正在追踪比他能力多的触摸点，
+[zh] 那么驱动程序应该上报BTN_TOOL_*TAP消息给用户程序，告知当前硬件设备追踪的触摸点总数。
+[zh] 方法是：
+[zh] 1. 显示地发送 BTN_TOOL_*TAP 消息，
+[zh] 2. 并且调用input_mt_report_pointer_emulation()，设置 use_count 为 false。
+[zh] 驱动程序上报的slot总数应该和硬件设备能够支持的总数一致，
+[zh] 用户程序通过 对比 BTN_TOOL_*TAP信息中的slot总数和 ABS_MT_SLOT 中的 absinfo 中的 slot总数对比，
+[zh] 能够检测出来驱动程序上报的触摸点总数超过了slot总数。
+[zh] -------------------------
+[zh] 在 <linux/input.h> 中定义的：
+[zh] #define BTN_TOOL_FINGER     0x145
+[zh] #define BTN_TOOL_DOUBLETAP  0x14d
+[zh] #define BTN_TOOL_TRIPLETAP  0x14e
+[zh] #define BTN_TOOL_QUADTAP    0x14f   /* Four fingers on trackpad */
+[zh] #define BTN_TOOL_QUINTTAP   0x148   /* Five fingers on trackpad */
+
+
+[en] Protocol Example A
+[zh] 协议举例： type A
+------------------
+
+[en] Here is what a minimal event sequence for a two-contact touch would look
+[en] like for a type A device:
+[zh] 这是一个针对 type A 设备的， 2个触摸点的最小消息时序。
+
+    ABS_MT_POSITION_X x[0]
+    ABS_MT_POSITION_Y y[0]
+    SYN_MT_REPORT
+    ABS_MT_POSITION_X x[1]
+    ABS_MT_POSITION_Y y[1]
+    SYN_MT_REPORT
+    SYN_REPORT
+
+[en] The sequence after moving one of the contacts looks exactly the same; the
+[en] raw data for all present contacts are sent between every synchronization
+[en] with SYN_REPORT.
+[zh] 移走任何一个触摸点的时序应该都是一致的。
+[zh] 针对每一个当前还在的触摸点，信息应该在SYN_REPORT之前上报。
+
+[en] Here is the sequence after lifting the first contact:
+[zh] 这是移走其中一个触摸点的时序。
+
+    ABS_MT_POSITION_X x[1]
+    ABS_MT_POSITION_Y y[1]
+    SYN_MT_REPORT
+    SYN_REPORT
+
+[en] And here is the sequence after lifting the second contact:
+[zh] 这是移走第二个触摸点的时序。
+
+   SYN_MT_REPORT
+   SYN_REPORT
+
+[en] If the driver reports one of BTN_TOUCH or ABS_PRESSURE in addition to the
+[en] ABS_MT events, the last SYN_MT_REPORT event may be omitted. Otherwise, the
+[en] last SYN_REPORT will be dropped by the input core, resulting in no
+[en] zero-contact event reaching userland.
+[zh] 如果驱动程序想要附加BTN_TOUCH或者ABS_PRESSURE消息给ABS_MT消息，
+[zh] 那么最后一个SYN_MT_REPORT消息可以被省略。
+[zh] 除此之外，SYN_MT_REPORT不能被省略，
+[zh] 如果最后一个SYN_MT_REPORT被省略，
+[zh] SYN_REPORT消息会被内核的input core丢弃，导致“没有触摸点了”的消息无法到达用户空间。
+
+[en] Protocol Example B
+[zh] 协议举例： type B
+------------------
+
+[en] Here is what a minimal event sequence for a two-contact touch would look
+[en] like for a type B device:
+[zh] 这是一个针对 type B 设备的， 2个触摸点的最小消息时序。
+
+   ABS_MT_SLOT 0
+   ABS_MT_TRACKING_ID 45
+   ABS_MT_POSITION_X x[0]
+   ABS_MT_POSITION_Y y[0]
+   ABS_MT_SLOT 1
+   ABS_MT_TRACKING_ID 46
+   ABS_MT_POSITION_X x[1]
+   ABS_MT_POSITION_Y y[1]
+   SYN_REPORT
+
+[en] Here is the sequence after moving contact 45 in the x direction:
+[zh] 这是向 X轴方向移动 ID 为 45的触摸点的时序。
+
+[en]    ABS_MT_SLOT 0
+[en]    ABS_MT_POSITION_X x[0]
+[en]    SYN_REPORT
+
+[en] Here is the sequence after lifting the contact in slot 0:
+[zh] 这是移走其中一个触摸点（ slot 0 ）的时序。
+
+[en]    ABS_MT_TRACKING_ID -1
+[en]    SYN_REPORT
+
+[en] The slot being modified is already 0, so the ABS_MT_SLOT is omitted.  The
+[en] message removes the association of slot 0 with contact 45, thereby
+[en] destroying contact 45 and freeing slot 0 to be reused for another contact.
+[zh] 正在被编辑的slot已经是slot 0了，所以ABS_MT_SLOT消息就省略了。
+[zh] 这串消息将slot 0和触摸点ID 为 45之间的联系删除，
+[zh] 也就是触摸点ID 为 45的被删除了， slot 0 可以给其他的触摸点使用了。
+
+[en] Finally, here is the sequence after lifting the second contact:
+[zh] 最后是移走第二个触摸点的时序。
+
+   ABS_MT_SLOT 1
+   ABS_MT_TRACKING_ID -1
+   SYN_REPORT
+
+
+[en] Event Usage
+[zh] 消息使用方法
+-----------
+
+[en] A set of ABS_MT events with the desired properties is defined. The events
+[en] are divided into categories, to allow for partial implementation.  The
+[en] minimum set consists of ABS_MT_POSITION_X and ABS_MT_POSITION_Y, which
+[en] allows for multiple contacts to be tracked.  If the device supports it, the
+[en] ABS_MT_TOUCH_MAJOR and ABS_MT_WIDTH_MAJOR may be used to provide the size
+[en] of the contact area and approaching contact, respectively.
+[zh] 一套ABS_MT消息在内核中已经被定义了。
+[zh] 这些消息分成多个类别，用于开发者按照自己喜欢的方式开发。
+[zh] 最小的组合是ABS_MT_POSITION_X和ABS_MT_POSITION_Y消息，用于跟踪多个触摸点的位置。
+[zh] 如果外部设备支持的话，
+[zh] 还可以用ABS_MT_TOUCH_MAJOR和ABS_MT_WIDTH_MAJOR这两个消息上报触摸面积的信息。
+
+[en] The TOUCH and WIDTH parameters have a geometrical interpretation; imagine
+[en] looking through a window at someone gently holding a finger against the
+[en] glass.  You will see two regions, one inner region consisting of the part
+[en] of the finger actually touching the glass, and one outer region formed by
+[en] the perimeter of the finger. The diameter of the inner region is the
+[en] ABS_MT_TOUCH_MAJOR, the diameter of the outer region is
+[en] ABS_MT_WIDTH_MAJOR. Now imagine the person pressing the finger harder
+[en] against the glass. The inner region will increase, and in general, the
+[en] ratio ABS_MT_TOUCH_MAJOR / ABS_MT_WIDTH_MAJOR, which is always smaller than
+[en] unity, is related to the contact pressure. For pressure-based devices,
+[en] ABS_MT_PRESSURE may be used to provide the pressure on the contact area
+[en] instead. Devices capable of contact hovering can use ABS_MT_DISTANCE to
+[en] indicate the distance between the contact and the surface.
+[zh] TOUCH和WITH是有几何意义的。
+[zh] 想象一下，有个人的手指头压着一片玻璃，我们从玻璃这边看手指头。
+[zh] 可以看到2个区域，中间的区域是实际压着的部分，外面那个区域是手指头在玻璃上的投影。
+[zh] 中间区域的直径 就是ABS_MT_TOUCH_MAJOR。
+[zh] 外面大得区域的直径 就是ABS_MT_WIDTH_MAJOR。
+[zh] 现在想象一下，压的力气变大一些，里面的区域就会变大，
+[zh] ABS_MT_TOUCH_MAJOR / ABS_MT_WIDTH_MAJOR 的值就能反映压力的大小，
+[zh] 这个值通常是小于1的。
+[zh] 对于支持压力检测的设备来说，ABS_MT_PRESSURE可以用来替代按压面积，上报压力。
+[zh] 对于支持haovring的设备来说，可以使用ABS_MT_DISTANCE来表明手指和触摸屏表面的距离。
+
+
+
+[en] In addition to the MAJOR parameters, the oval shape of the contact can be
+[en] described by adding the MINOR parameters, such that MAJOR and MINOR are the
+[en] major and minor axis of an ellipse. Finally, the orientation of the oval
+[en] shape can be describe with the ORIENTATION parameter.
+[zh] 作为MAJOR的补充，触摸点的椭圆形的形状，还可以用MINOR来说明。
+[zh] MAJOR和MINOR分别表示最长的方向和短一些的那个方向。
+[zh] 最后也可以用ORIENTATION来说明这个椭圆的方位，是不是水平的。
+
+[en] For type A devices, further specification of the touch shape is possible
+[en] via ABS_MT_BLOB_ID.
+[zh] 对于type A类型的设备而言，触摸点形状的更多特征还可以使用ABS_MT_BLOB_ID消息进行通知。
+
+[en] The ABS_MT_TOOL_TYPE may be used to specify whether the touching tool is a
+[en] finger or a pen or something else. Finally, the ABS_MT_TRACKING_ID event
+[en] may be used to track identified contacts over time [5].
+[zh] ABS_MT_TOOL_TYPE可以用来说明触摸的工具是手指、笔或者其他的什么。
+[zh] 最后，ABS_MT_TRACKING_ID消息可以用来跟踪被识别的触摸点。
+
+[en] In the type B protocol, ABS_MT_TOOL_TYPE and ABS_MT_TRACKING_ID are
+[en] implicitly handled by input core; drivers should instead call
+[en] input_mt_report_slot_state().
+[zh] 对于type B类型的设备，
+[zh] ABS_MT_TOOL_TYPE 和 ABS_MT_TRACKING_ID 会被 input core 在暗地里处理。
+[zh] 因此驱动程序应该调用 input_mt_report_slot_state()。
+
+[en] Event Semantics
+[zh] 消息含义
+---------------
+
+ABS_MT_TOUCH_MAJOR
+
+[en] The length of the major axis of the contact. The length should be given in
+[en] surface units. If the surface has an X times Y resolution, the largest
+[en] possible value of ABS_MT_TOUCH_MAJOR is sqrt(X^2 + Y^2), the diagonal [4].
+[zh] 触摸点椭圆形最长的那个方向的直径。
+[zh] 这个长度应该是触摸表面的长度单位，
+[zh] 如果触摸表面的X是Y的几倍（矩形），
+[zh] 那么ABS_MT_TOUCH_MAJOR的长度最长为 ( x平方 +  y平方 )开根号，也就是对角线的长度。
+
+ABS_MT_TOUCH_MINOR
+
+[en] The length, in surface units, of the minor axis of the contact. If the
+[en] contact is circular, this event can be omitted [4].
+[zh] 触摸点椭圆形短一点的那个方向的直径，如果是圆形，ABS_MT_TOUCH_MINOR可以省略。
+
+ABS_MT_WIDTH_MAJOR
+
+[en] The length, in surface units, of the major axis of the approaching
+[en] tool. This should be understood as the size of the tool itself. The
+[en] orientation of the contact and the approaching tool are assumed to be the
+[en] same [4].
+[zh] 以触摸面的长度单位为单位的触摸工具，在触摸面上的最长的长度，
+[zh] 这个长度可以理解为触摸工具本身的长度。
+[zh] 触摸点和触摸工具的水平方向假设是一致的。
+
+ABS_MT_WIDTH_MINOR
+
+[en] The length, in surface units, of the minor axis of the approaching
+[en] tool. Omit if circular [4].
+[zh] 以触摸面的长度单位为单位的触摸工具，在触摸面上的短一点的长度。
+[zh] 如果是圆形可以省略。
+
+[en] The above four values can be used to derive additional information about
+[en] the contact. The ratio ABS_MT_TOUCH_MAJOR / ABS_MT_WIDTH_MAJOR approximates
+[en] the notion of pressure. The fingers of the hand and the palm all have
+[en] different characteristic widths [1].
+[zh] 上面的4个数据可以用来传递触摸点的一些额外信息。
+[zh] ABS_MT_TOUCH_MAJOR / ABS_MT_WIDTH_MAJOR 的比值用来估计压力的大小。
+[zh] 这些宽度信息也可以用于识别手指还是手掌。（手掌比手指要宽）
+
+ABS_MT_PRESSURE
+
+[en] The pressure, in arbitrary units, on the contact area. May be used instead
+[en] of TOUCH and WIDTH for pressure-based devices or any device with a spatial
+[en] signal intensity distribution.
+[zh] 触摸点的压力大小，可以是任意衡量单位。
+[zh] 对于能够测量压力的设备，可以用来替代TOUCH 和 WIDTH。
+
+ABS_MT_DISTANCE
+
+[en] The distance, in surface units, between the contact and the surface. Zero
+[en] distance means the contact is touching the surface. A positive number means
+[en] the contact is hovering above the surface.
+[zh] 手指头距离触摸屏表面的距离，以触摸面的长度单位为单位。
+[zh] 0意味着已经接触到触摸屏。
+[zh] 大于0的数是指手指头在触摸屏上面的高度。
+
+ABS_MT_ORIENTATION
+
+[en] The orientation of the ellipse. The value should describe a signed quarter
+[en] of a revolution clockwise around the touch center. The signed value range
+[en] is arbitrary, but zero should be returned for a finger aligned along the Y
+[en] axis of the surface, a negative value when finger is turned to the left, and
+[en] a positive value when finger turned to the right. When completely aligned with
+[en] the X axis, the range max should be returned.  Orientation can be omitted
+[en] if the touching object is circular, or if the information is not available
+[en] in the kernel driver. Partial orientation support is possible if the device
+[en] can distinguish between the two axis, but not (uniquely) any values in
+[en] between. In such cases, the range of ABS_MT_ORIENTATION should be [0, 1]
+[en] [4].
+[zh] 椭圆形触摸点的方向（水平还是垂直）。
+[zh] 它的值应该是有符号的、和旋转方向有关、90度为一个周期的。
+[zh] 取值范围是有符号的，取值范围可以任意定，
+[zh] 但0应该表示为长轴沿着Y方向，
+[zh] 负数表示逆时针旋转了，正数表示顺时针旋转了。
+[zh] 长轴方向如果完全变成X方向，那么值就变成最大的了。
+[zh] 如果触摸点的形状是圆形，或者得不到形状信息，可以不上报ABS_MT_ORIENTATION这个消息。
+[zh] 如果设备只能检测到是水平或者是垂直信息，那么ABS_MT_ORIENTATION的值就应该是0或者1。
+
+
+ABS_MT_POSITION_X
+
+[en] The surface X coordinate of the center of the touching ellipse.
+[zh] 触摸中心位置的X轴坐标。
+
+ABS_MT_POSITION_Y
+
+[en] The surface Y coordinate of the center of the touching ellipse.
+[zh] 触摸中心位置的Y轴坐标。
+
+ABS_MT_TOOL_TYPE
+
+[en] The type of approaching tool. A lot of kernel drivers cannot distinguish
+[en] between different tool types, such as a finger or a pen. In such cases, the
+[en] event should be omitted. The protocol currently supports MT_TOOL_FINGER and
+[en] MT_TOOL_PEN [2]. For type B devices, this event is handled by input core;
+[en] drivers should instead use input_mt_report_slot_state().
+[zh] 触摸工具类型，很多内核驱动都不能区分是什么触摸工具，比如是手指还是笔。
+[zh] 如果是这样的内核驱动，那么应该省略掉这个消息。
+[zh] 目前的多点触摸协议支持 MT_TOOL_FINGER 和 MT_TOOL_PEN。
+[zh] 对于 type B 类型的设备，这个消息是在 input core 处理的，
+[zh] 因此驱动程序应该调用 input_mt_report_slot_state() 上报触摸工具的类型。
+
+ABS_MT_BLOB_ID
+
+[en] The BLOB_ID groups several packets together into one arbitrarily shaped
+[en] contact. The sequence of points forms a polygon which defines the shape of
+[en] the contact. This is a low-level anonymous grouping for type A devices, and
+[en] should not be confused with the high-level trackingID [5]. Most type A
+[en] devices do not have blob capability, so drivers can safely omit this event.
+[zh] 将多个坐标消息组合成一个BLOB_ID，用于描述触摸点的形状。
+[zh] 多个点的信息按照一定顺序上报，能够形成一个代表触摸点形状的多边形。
+[zh] 这个是针对 type A 的更底层的信息打包，不要和 高级的 TRACKING ID 弄混了。
+[zh] 大部分 type A 的设备并不支持这个功能，所以驱动程序忽略掉这个消息也没有关系。
+
+ABS_MT_TRACKING_ID
+
+[en] The TRACKING_ID identifies an initiated contact throughout its life cycle
+[en] [5]. The value range of the TRACKING_ID should be large enough to ensure
+[en] unique identification of a contact maintained over an extended period of
+[en] time. For type B devices, this event is handled by input core; drivers
+[en] should instead use input_mt_report_slot_state().
+[zh] TRACKING ID用来追踪和识别压下到提起期间的某一个触摸点。
+[zh] TRACKING ID的取值范围应该是足够大的，用于更方便区分是哪一个触摸点。
+[zh] 对于 type B 类型的设备，这个消息是 input core 内部处理的，
+[zh] 驱动程序应该调用 input_mt_report_slot_state() 来告诉input core当前slot是否是无效了。
+
+[en] Event Computation
+[zh] 消息的处理
+-----------------
+
+[en] The flora of different hardware unavoidably leads to some devices fitting
+[en] better to the MT protocol than others. To simplify and unify the mapping,
+[en] this section gives recipes for how to compute certain events.
+[zh] 由于硬件设备众多，其中的一些设备比其他的设备，更容易编写多点触摸协议的驱动。
+[zh] 为了简化和统一驱动程序的处理方式，这个章节给出了驱动程序对于主要消息的处理方式的建议。
+
+[en] For devices reporting contacts as rectangular shapes, signed orientation
+[en] cannot be obtained. Assuming X and Y are the lengths of the sides of the
+[en] touching rectangle, here is a simple formula that retains the most
+[en] information possible:
+[zh] 如果设备提供的触摸点信息是矩形，有符号的水平位置信息就无法获取到。
+[zh] 假设X和Y是矩形的两个边长，下面的计算方法可以得到最主要的信息。
+
+   ABS_MT_TOUCH_MAJOR := max(X, Y)
+   ABS_MT_TOUCH_MINOR := min(X, Y)
+   ABS_MT_ORIENTATION := bool(X > Y)
+
+[en] The range of ABS_MT_ORIENTATION should be set to [0, 1], to indicate that
+[en] the device can distinguish between a finger along the Y axis (0) and a
+[en] finger along the X axis (1).
+[zh] ABS_MT_ORIENTATION 的范围应该是 0 或者 1，
+[zh] 用于表明设备能够区分手指是Y方向还是X方向的。
+
+[en] Finger Tracking
+[zh] 手指的追踪
+---------------
+
+[en] The process of finger tracking, i.e., to assign a unique trackingID to each
+[en] initiated contact on the surface, is a Euclidian Bipartite Matching
+[en] problem.  At each event synchronization, the set of actual contacts is
+[en] matched to the set of contacts from the previous synchronization. A full
+[en] implementation can be found in [3].
+[zh] 给触摸点分配一个唯一的 TRACKING ID 的判断方法，是几何问题。
+[zh] 每次进行消息同步的时候，本次同步的触摸点信息会和上次同步的触摸点信息进行匹配。
+[zh] 你可以在mtdev项目中找到如何匹配的具体的实现。
+
+
+[en] Gestures
+[zh] 手势
+--------
+
+[en] In the specific application of creating gesture events, the TOUCH and WIDTH
+[en] parameters can be used to, e.g., approximate finger pressure or distinguish
+[en] between index finger and thumb. With the addition of the MINOR parameters,
+[en] one can also distinguish between a sweeping finger and a pointing finger,
+[en] and with ORIENTATION, one can detect twisting of fingers.
+[zh] 对于手势识别的这类程序，可以使用 TOUCH 和 WIDTH 信息来识别压力的大小，或者区分哪个是食指，哪个是拇指。
+[zh] 如果还有 MINOR 信息的话，还可以识别是滑动的手指或是轻轻点得手指。（没太看懂 sweeping 和 pointing ）
+[zh] 如果有 ORIENTATION 信息的话，也可以识别出来手指的转动。
+
+[en] Notes
+[zh] 备注
+-----
+
+[en] In order to stay compatible with existing applications, the data reported
+[en] in a finger packet must not be recognized as single-touch events.
+[zh] 为了让已有的应用程序也兼容多点触摸协议，驱动程序不应该将多点触摸消息上报成单点触摸消息。
+
+[en] For type A devices, all finger data bypasses input filtering, since
+[en] subsequent events of the same type refer to different fingers.
+[zh] 对于 type A 的设备而言，所有的触摸信息都会绕开 input core 的过滤处理，
+[zh] 因为相同的消息出现2次也许是针对不同的触摸点。（如果被过滤，就变成一个了）
+
+[en] For example usage of the type A protocol, see the bcm5974 driver. For
+[en] example usage of the type B protocol, see the hid-egalax driver.
+[zh] type A设备可以参考 bcm5974 的驱动。
+[zh] type B设备可以参考 hid-egalax 的驱动。
+
+[en] [1] With the extension ABS_MT_APPROACH_X and ABS_MT_APPROACH_Y, the
+[en] difference between the contact position and the approaching tool position
+[en] could be used to derive tilt.
+[zh] [1]通过扩展的 ABS_MT_APPROACH_X 和 ABS_MT_APPROACH_Y 消息，可以传递 触摸工具的坐标位置信息。
+[zh] 如果和 触摸点坐标 进行比较的话，可以判断出来触摸工具是否是倾斜的。
+
+[en] [2] The list can of course be extended.
+[en] [3] The mtdev project: http://bitmath.org/code/mtdev/.
+[en] [4] See the section on event computation.
+[en] [5] See the section on finger tracking.

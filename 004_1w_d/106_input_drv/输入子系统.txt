@@ -1,0 +1,245 @@
+一、输入子系统驱动的复习
+1.输入子系统的驱动的框架结构体
+	1.1核心层      ：提供时间处理层和设备驱动层的注册、注销，匹配过程
+	1.2事件处理层  ：向应用层提供操作的接口如mouse.c evdev.c
+	1.3设备驱动层  ：读取事件，上报事件
+
+2.输入子系统的目录结构体
+	input.c ：核心层
+	evdev.c mousedev.c ：事件处理层
+	gpio_keys.c gt818.c：设备驱动层
+
+3.input子系统的注册和注销函数
+	事件处理层
+	 int input_register_handler(struct input_handler *handler) 
+	 void input_unregister_handler(struct input_handler *handler) 
+	设备驱动层
+	 int input_register_device(struct input_dev *dev)
+	 void input_unregister_device(struct input_dev *dev) 
+
+
+4.事件处理层注册handler的过程
+	我们以linux-3.4/drivers/input/evdev.c为例
+		static const struct input_device_id evdev_ids[] = {
+			{ .driver_info = 1 },  
+			{ },                                                                                 
+		};
+		static struct input_handler evdev_handler = {
+			.event      = evdev_event,
+			.connect    = evdev_connect,
+			.disconnect = evdev_disconnect,
+			.fops       = &evdev_fops,                                                                                                   
+			.minor      = EVDEV_MINOR_BASE, //  #define EVDEV_MINOR_BASE    64  
+			.name       = "evdev",
+			.id_table   = evdev_ids,       //这里初始化了id_table成员
+		};
+		static int __init evdev_init(void)
+		{
+			return input_register_handler(&evdev_handler);
+		}
+		static void __exit evdev_exit(void)
+		{
+			input_unregister_handler(&evdev_handler);
+		}
+		module_init(evdev_init);
+		module_exit(evdev_exit);
+
+	从上面的代码我们能够分析看出来，这里就是定义了一个input_handler结构体
+	将结构体的成员填充完成之后，通过input_register_handler函数注册到内核中
+	接下来我们分析下注册handler的过程。
+		input_register_handler(&evdev_handler);
+			input_table[handler->minor >> 5] = handler; //将上面定义的结构体，填充到input_table数组中
+            list_add_tail(&handler->node, &input_handler_list); //将注册的该节点放在input_handler_list这条链表中
+			list_for_each_entry(dev, &input_dev_list, node)     //遍历input_dev_list这条链表
+				input_attach_handler(dev, handler);             //那handler在input_dev_list这条链表上进行匹配
+					id = input_match_device(handler, dev);      //开始匹配
+						 for (id = handler->id_table; id->flags || id->driver_info; id++) {
+						 if (id->flags & INPUT_DEVICE_ID_MATCH_BUS)
+							  if (id->bustype != dev->id.bustype)
+						     id->flags  //在前面没有定义，它可以是总线类型，厂商，id等成员
+							MATCH_BIT(evbit,  EV_MAX);                                                                                          
+							MATCH_BIT(keybit, KEY_MAX);
+							MATCH_BIT(relbit, REL_MAX);
+							MATCH_BIT(absbit, ABS_MAX);
+
+							#define MATCH_BIT(bit, max) \                                                                                               
+									for (i = 0; i < BITS_TO_LONGS(max); i++) \
+										if ((id->bit[i] & dev->bit[i]) != id->bit[i]) \
+											break; \
+									if (i != BITS_TO_LONGS(max)) \  
+										continue;     //这里的continue是作用到外层循环的
+								//如果evbit，keybit，relbit等有一项不相等就接着匹配下一个input_dev,
+								//如果上面的都匹配成功，就会执行handler中的match函数
+								if (!handler->match || handler->match(handler, dev))
+								//在evdev中并没有对handler结构体中的match成员初始化，取反之后为真
+								return id;返回匹配到的id成员。
+
+					error = handler->connect(handler, dev, id);
+					.connect    = evdev_connect,  
+						struct evdev *evdev;
+						evdev = kzalloc(sizeof(struct evdev), GFP_KERNEL);
+						dev_set_name(&evdev->dev, "event%d", minor);
+						evdev->handle.dev = input_get_device(dev);  
+						evdev->handle.handler = handler;          //将匹配到的dev和handler放到handle结构体中
+						error = input_register_handle(&evdev->handle);
+							list_add_tail_rcu(&handle->d_node, &dev->h_list);  //将d_node添加到dev的h_list中
+							list_add_tail_rcu(&handle->h_node, &handler->h_list);//将h_node添加到handler的h_list中
+						//这里我们需要回顾一下input_handler和input_dev结构体关于链表的成员
+							struct input_handler {
+								struct list_head    h_list;
+								struct list_head    node;
+								...
+							};  
+
+							struct input_dev {
+								struct list_head    h_list;
+								struct list_head    node;
+								...
+							};
+						我们可以看到这两个结构体中都有h_list和node这两条链表，这两条链表都是保存
+						的什么成员那？input_handler结构体的node成员会放入input_handler_list链表。
+						input_dev结构体的node成员会放入input_dev_list链表。也就是说node是为了保存
+						自己的。而匹配到之后首先会构建input_handle结构体，然后将这个结构体分别放在
+						两个结构体体的h_list的链表中。
+						
+5.设备驱动层注册过程
+	我们以fspad-733/lichee/linux-3.4/drivers/input/keyboard/gpio_keys.c为例子
+	从这个驱动的probe函数开始分析gpio_keys_probe
+		struct input_dev *input;
+		input = input_allocate_device();   //为input结构体分配空间，我们可以看下它的实现
+			struct input_dev *input_allocate_device(void)
+			{
+				struct input_dev *dev;
+				
+				dev = kzalloc(sizeof(struct input_dev), GFP_KERNEL); 
+				if (dev) {
+					dev->dev.type = &input_dev_type;   //创建设备属性文件
+					dev->dev.class = &input_class;     //填充总线类型为input                                                               
+					device_initialize(&dev->dev);      //初始device结构体，包括kobject的信息
+					INIT_LIST_HEAD(&dev->h_list);      //初始化前面分析的两条链表
+					INIT_LIST_HEAD(&dev->node);
+
+		input->open = gpio_keys_open;    //填充open函数
+		input->close = gpio_keys_close;  //填充close函数
+		input->id.bustype = BUS_HOST;    //初始化总线类型，厂商，id，版本号
+		input->id.vendor = 0x0001;
+		input->id.product = 0x0001;
+		input->id.version = 0x0100;
+		#define EV_REP          0x14     0001 010  0   --->20
+		 __set_bit(EV_REP, input->evbit);
+
+				static inline void __set_bit(int nr, volatile unsigned long *addr)
+				{                                                                                                                            
+					unsigned long mask = BIT_MASK(nr);
+					unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
+					
+					*p  |= mask;
+				}   
+
+			#define BIT_MASK(nr)        (1UL << ((nr) % BITS_PER_LONG))
+			#define BIT_WORD(nr)        ((nr) / BITS_PER_LONG)    
+
+			((unsigned long *)addr) +  ((nr) / 32) |= (1UL << ((nr) % 32))
+		
+		通过__set_bit函数，来设置input->evbit变量的第20位为1，EV_REP命令码代表重复。
+		当然还可以设置为下面的命令码。evbit这一位代表设置不同的事件类型
+			EV_SYN 0x00 同步事件
+			EV_KEY 0x01 按键事件，如KEY_VOLUMEDOWN
+			EV_REL 0x02 相对坐标, 如鼠标上报的坐标
+			EV_ABS 0x03 绝对坐标，如触摸屏上报的坐标
+			EV_MSC 0x04 其它
+			EV_LED 0x11 LED
+			EV_SND 0x12 声音
+			EV_REP 0x14 Repeat
+			EV_FF 0x15 力反馈 
+
+		 error = input_register_device(input);   //将input注册到系统中
+			 list_add_tail(&dev->node, &input_dev_list);    //将input_dev节点添加到input_dev_list链表中
+			 list_for_each_entry(handler, &input_handler_list, node) //在input_handler_list链表中查找
+				 input_attach_handler(dev, handler);  //完成匹配过程，此过程以及分析过了，这里就不在分析了
+
+6.set_bit和__set_bit的关系
+	 #define set_bit(nr,p)           ATOMIC_BITOP(set_bit,nr,p)    
+	 #define ATOMIC_BITOP(name,nr,p)     _##name(nr,p)   
+		__set_bit(nr,p)
+
+7.如何上报事件
+	事件会通过input_event函数进行数据的上报。
+	input_event(struct input_dev *dev,unsigned int type, unsigned int code, int value)
+         input_handle_event(dev, type, code, value);
+			switch (type) {
+				case EV_SYN:
+				case EV_KEY:      //对disposition变量赋值
+				...
+			if (disposition & INPUT_PASS_TO_HANDLERS)
+				input_pass_event(dev, type, code, value);     
+					handle->handler->event(handle, type, code, value);    
+						.event      = evdev_event,
+							struct input_event event;
+							 struct input_event {                                                                                                        
+								 struct timeval time;    //时间
+								 __u16 type;             //事件类型
+								 __u16 code;             //编号
+								 __s32 value;            //值
+							 };
+							 event.type = type;
+							 event.code = code;
+							 event.value = value;
+								evdev_pass_event(client, &event, time_mono, time_real);
+									client->buffer[client->head++] = *event;   //将要上报的input_event
+									client->head &= client->bufsize - 1;       //放入缓冲区
+									if (unlikely(client->head == client->tail)) {   //如果缓冲区存放满之后，将最后一个设置为同步信号
+										client->tail = (client->head - 2) & (client->bufsize - 1);
+										client->buffer[client->tail].time = event->time;
+										client->buffer[client->tail].type = EV_SYN;
+										client->buffer[client->tail].code = SYN_DROPPED;
+										client->buffer[client->tail].value = 0;                                                                             
+										client->packet_head = client->tail;
+									}
+							 if (event->type == EV_SYN && event->code == SYN_REPORT) {
+								 client->packet_head = client->head;                                                                                
+								 kill_fasync(&client->fasync, SIGIO, POLL_IN);
+							 }
+							//从上述的代码中，我们可以看到，EV_SYN通过信号的发出可以有两种情况，
+							第一，input_client中的缓冲区存满，第二用户发出了EV_SYN同步信号。当
+							同步信号发出时，驱动中就会发送kill_fasync信号，告诉应用程序有数据要
+							上报了。kill_fasync和fasync_helper实现异步通知。
+							 if (type == EV_SYN && code == SYN_REPORT)
+							     wake_up_interruptible(&evdev->wait);  //唤醒等待队列
+							
+							此时应用程序可以通过三种方式来读取，第一种就是在应用程序中注册signal
+							信号处理函数，在信号处理函数中读取数据，第二种就是直接调用read函数读
+							数据就行了。第三种就是使用select，poll，epoll函数来读取数据。打开的设备
+							节点为/dev/input/event%d。
+							
+	当然事件的上报还可以是input_report_key,input_report_rel,input_report_abs,input_sync等，你会发现这些
+	函数最终都是调用input_event函数来实现的。只是暂时指定了他们的事件类型
+二、输入子系统驱动的编写
+	1.定义结构体
+		struct input_dev  *input;
+	2.分配空间
+		input = input_allocate_device(); 
+	3.结构体成员的填充
+		3.1什么类型的事件
+			set_bit(EV_KEY,fs_input->evbit);
+		3.2上报什么值
+			set_bit(KEY_ENTER,fs_input->keybit);
+			set_bit(KEY_L,fs_input->keybit);
+
+	4.结构体的注册和注销
+		input_register_device(input);
+		input_unregister_device(input);
+		
+	驱动的代码：
+		set_bit(EV_KEY,fspad_input->evbit);
+		set_bit(KEY_1,fspad_input->keybit);
+		set_bit(KEY_2,fspad_input->keybit);
+		set_bit(KEY_3,fspad_input->keybit);
+		set_bit(KEY_4,fspad_input->keybit);
+		set_bit(KEY_POWER,fspad_input->keybit);	
+		
+		使用sendevent可以上报事件
+		use: sendevent device type code value
+		sendevent event6 1 116 1  //按下电源
+		sendevent event6 1 116 0  //松开电源
+		sendevent event6 0 0 0    //发送同步事件

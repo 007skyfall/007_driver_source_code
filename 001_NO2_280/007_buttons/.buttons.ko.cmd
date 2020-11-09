@@ -1,0 +1,1 @@
+cmd_/home/ubuntu/smb_share/001_NO2_280/007_buttons/buttons.ko := /home/ubuntu/itop/arm-2009q3/bin/arm-none-linux-gnueabi-ld -EL -r  -T /home/ubuntu/itop/linux_3.0/scripts/module-common.lds --build-id  -o /home/ubuntu/smb_share/001_NO2_280/007_buttons/buttons.ko /home/ubuntu/smb_share/001_NO2_280/007_buttons/buttons.o /home/ubuntu/smb_share/001_NO2_280/007_buttons/buttons.mod.o

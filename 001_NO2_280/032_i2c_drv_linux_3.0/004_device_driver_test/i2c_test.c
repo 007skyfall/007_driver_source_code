@@ -1,0 +1,31 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+#include "mpu_cmd.h"
+
+union mpu6050_data data;
+
+int main(int argc, const char *argv[])
+{
+	int fd ;
+	fd = open("/dev/itop_i2c",O_RDWR);
+	if(fd < 0){
+		perror("open");
+	}
+
+	while(1){
+		if(ioctl(fd,ACCEL,&data)){
+			perror("ioctl");
+		}
+		printf("accx:%d\taccy:%d\taccz:%d\n",data.acc.x,data.acc.y,data.acc.z);
+		sleep(1);
+	}
+
+	return 0;
+
+	close(fd);
+}
+

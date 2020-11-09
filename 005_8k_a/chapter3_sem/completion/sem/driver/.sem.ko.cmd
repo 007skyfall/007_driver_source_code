@@ -1,0 +1,1 @@
+cmd_/home/student/driver/completion/sem/driver/sem.ko := arm-linux-ld -EL -r  -T /home/student/linux-2.6.32.2/scripts/module-common.lds --build-id -o /home/student/driver/completion/sem/driver/sem.ko /home/student/driver/completion/sem/driver/sem.o /home/student/driver/completion/sem/driver/sem.mod.o

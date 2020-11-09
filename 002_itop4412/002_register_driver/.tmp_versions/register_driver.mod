@@ -1,0 +1,2 @@
+/home/mint/git/itop4412_dirver_20190529-master/002_register_driver/register_driver.ko
+/home/mint/git/itop4412_dirver_20190529-master/002_register_driver/register_driver.o

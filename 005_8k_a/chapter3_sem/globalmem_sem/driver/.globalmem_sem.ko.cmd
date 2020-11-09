@@ -1,0 +1,1 @@
+cmd_/mnt/hgfs/share/Drivers/chapter3/globalmem_sem/driver/globalmem_sem.ko := arm-linux-ld -EL -r  -T /opt/linux-2.6.34/scripts/module-common.lds --build-id -o /mnt/hgfs/share/Drivers/chapter3/globalmem_sem/driver/globalmem_sem.ko /mnt/hgfs/share/Drivers/chapter3/globalmem_sem/driver/globalmem_sem.o /mnt/hgfs/share/Drivers/chapter3/globalmem_sem/driver/globalmem_sem.mod.o

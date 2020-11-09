@@ -1,0 +1,262 @@
+evtest.o: evtest.c \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/stdio.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/features.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/predefs.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/cdefs.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/wordsize.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/gnu/stubs.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../lib/gcc/arm-none-linux-gnueabi/4.4.1/include/stddef.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/types.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/typesizes.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/libio.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/_G_config.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/wchar.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../lib/gcc/arm-none-linux-gnueabi/4.4.1/include/stdarg.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/stdio_lim.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/sys_errlist.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/stdio.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/stdint.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/wchar.h \
+ config.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/linux/version.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/linux/input.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/time.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/time.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/time.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/select.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/select.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/sigset.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/ioctl.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/ioctls.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/asm/ioctls.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/asm/ioctl.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/asm-generic/ioctl.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/ioctl-types.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/ttydefaults.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/types.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/endian.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/endian.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/byteswap.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/sysmacros.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/pthreadtypes.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/linux/types.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/asm/types.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/asm-generic/int-ll64.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/linux/posix_types.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/linux/stddef.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/asm/posix_types.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/string.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/xlocale.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/string.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/string2.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/stdlib.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/fcntl.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/fcntl.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/uio.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/stat.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/stat.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/unistd.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/posix_opt.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/environments.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/confname.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/getopt.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/waitflags.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/waitstatus.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/alloca.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/dirent.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/dirent.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/posix1_lim.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/local_lim.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/linux/limits.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/errno.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/errno.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/linux/errno.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/asm/errno.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/asm-generic/errno.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/asm-generic/errno-base.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/ctype.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/signal.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/signum.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/siginfo.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/sigaction.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/sigcontext.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/asm/sigcontext.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/sigstack.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/ucontext.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/procfs.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/user.h \
+ /home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/sigthread.h
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/stdio.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/features.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/predefs.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/cdefs.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/wordsize.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/gnu/stubs.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../lib/gcc/arm-none-linux-gnueabi/4.4.1/include/stddef.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/types.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/typesizes.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/libio.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/_G_config.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/wchar.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../lib/gcc/arm-none-linux-gnueabi/4.4.1/include/stdarg.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/stdio_lim.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/sys_errlist.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/stdio.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/stdint.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/wchar.h:
+
+config.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/linux/version.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/linux/input.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/time.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/time.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/time.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/select.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/select.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/sigset.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/ioctl.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/ioctls.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/asm/ioctls.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/asm/ioctl.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/asm-generic/ioctl.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/ioctl-types.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/ttydefaults.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/types.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/endian.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/endian.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/byteswap.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/sysmacros.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/pthreadtypes.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/linux/types.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/asm/types.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/asm-generic/int-ll64.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/linux/posix_types.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/linux/stddef.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/asm/posix_types.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/string.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/xlocale.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/string.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/string2.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/stdlib.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/fcntl.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/fcntl.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/uio.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/stat.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/stat.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/unistd.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/posix_opt.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/environments.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/confname.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/getopt.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/waitflags.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/waitstatus.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/alloca.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/dirent.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/dirent.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/posix1_lim.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/local_lim.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/linux/limits.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/errno.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/errno.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/linux/errno.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/asm/errno.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/asm-generic/errno.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/asm-generic/errno-base.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/ctype.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/signal.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/signum.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/siginfo.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/sigaction.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/sigcontext.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/asm/sigcontext.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/sigstack.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/ucontext.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/procfs.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/sys/user.h:
+
+/home/ubuntu/itop/arm-2009q3/bin/../arm-none-linux-gnueabi/libc/usr/include/bits/sigthread.h:

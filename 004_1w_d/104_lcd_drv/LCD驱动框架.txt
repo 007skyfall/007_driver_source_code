@@ -1,0 +1,97 @@
+【1】什么是lcd？
+  liquid crystal  display：简称lcd，液晶显示器
+  液晶：可以在电信号的驱动下，液晶分子进行旋转，
+        旋转会影响透光性，因此我们可以在液晶的面板
+		上使用白光照射（背光）；
+		
+		
+driver/video/fbmem.c 
+   fbmem_init
+         register_chrdev  FB_MAJOR =29 
+               fb_class = class_create(THIS_MODULE, "graphics");  创建类名 
+			   
+app：
+open("/dev/fb0",O_RDWR);
+***********************************************
+fb_ops:  open 
+fb_open(struct inode *inode, struct file *file)
+     int fbidx = iminor(inode);通过inode结构体识别次设备号
+	 struct fb_info *info;
+	 info = get_fb_info(fbidx);
+	         struct fb_info *fb_info;
+			    fb_info = registered_fb[idx];
+				return fb_info; 
+	
+	if (info->fbops->fb_open) {
+		res = info->fbops->fb_open(info,1);
+*********************************************************8
+fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+   struct fb_info *info = file_fb_info(file);	
+   struct inode *inode = file_inode(file);
+	int fbidx = iminor(inode);
+	struct fb_info *info = registered_fb[fbidx];
+ 
+***************************************************************
+fb_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
+  struct fb_info *info = file_fb_info(file); 
+
+registered_fb在哪里被填充？  
+   static int do_register_framebuffer(struct fb_info *fb_info)
+         fb_info->dev = device_create(fb_class, fb_info->device,
+				     MKDEV(FB_MAJOR, i), NULL, "fb%d", i);
+					  registered_fb[i] = fb_info;
+do_register_framebuffer 调用？
+ int register_framebuffer(struct fb_info *fb_info)	
+
+LCD的显示单位：帧
+显示器上一整个画面的内容称为一帧。
+整个显示器工作其实一帧一帧显示。
+电影每秒24帧的速度播放图片。
+
+显存：（显示内存）
+soc在内存申请一块空间作为显存，然后通过
+配置将lcd控制器和申请的显存空间连接起来。
+lcd控制器就会自动从显存中读取数据，将数据传给
+lcd驱动器。显示的过程不需要cpu的参与。
+所以我们只需要把显示的图像的数据放到显存中，
+lcd控制器就会自动响应，lcd屏幕就能看大片显示的
+图像
+lcd控制器：一般集成在soc的内部，soc会从内存中
+取数据，把数据给lcd控制器，最终把数据传给lcd驱动器
+lcd驱动器：负责提供控制液晶分子的电信号。
+
+调色板：256色图象（包括256级灰度图象），使用调色板。调色板中记录的是图象中使用的256种颜色，图象数据中记录的是颜色索引，通过这个索引值就可以找到对应的颜色。  
+	
+【lcd】
+	VD[23-0],24根数据线，用来传输图像信息。lcd并行接口，速度快。
+	HSYNC:水平同步信号
+	VSYNC:垂直同步信号
+	VCLK:时钟：lcd工作时控制器给lcd驱动器时钟信号
+	VDEN:数据的有效标志
+
+
+硬件操作：
+时钟源：
+ http://blog.csdn.net/farsight2009/article/details/7244959
+ 寄存器如何操作：
+ http://blog.csdn.net/eshing/article/details/37568141
+ 	
+lcd 时序：
+HSPW: 水平同步信号的脉宽
+HBPD: 水平同步信号的前肩
+HFPD: 水平同步信号的后肩
+VSPW:  垂直同步信号的脉宽
+VBPD:  垂直同步信号的前肩
+VFPD: 垂直同步信号的后肩
+一行通信：lcd控制器先发送一个水平同步信号（HSYNC）高电平脉冲
+（脉冲的宽度HSPW）.脉冲告诉lcd驱动器下面是一行信息。
+其中这一行信息（HBPD+有效的行信息+HFPD）；前肩和后肩属于时序信息。
+整个图像有多行组成，（列）。
+一帧图像就是一列，一列图形有多行组成。
+一帧图像的通信：
+ 4部分：VSPW+VBPD+一帧的信息+VFPD.
+VSPW:帧同步信号宽度，用来告诉驱动器一帧的图像就要开始啦，
+VBPD 和VFPD 分别垂直同步信号的前肩和后肩。 
+
+【lcd驱动】
+	见附件

@@ -1,0 +1,1 @@
+cmd_/home/student/driver/globalmem/driver/globalmem.ko := arm-linux-ld -EL -r  -T /home/student/linux-2.6.32.2/scripts/module-common.lds --build-id -o /home/student/driver/globalmem/driver/globalmem.ko /home/student/driver/globalmem/driver/globalmem.o /home/student/driver/globalmem/driver/globalmem.mod.o

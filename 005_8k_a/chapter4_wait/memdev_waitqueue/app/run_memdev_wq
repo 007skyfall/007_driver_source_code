@@ -1,0 +1,3 @@
+./memdev_read &
+./memdev_write &
+

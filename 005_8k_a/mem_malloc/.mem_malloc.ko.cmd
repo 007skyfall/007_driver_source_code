@@ -1,0 +1,1 @@
+cmd_/home/student/driver/mem_malloc/mem_malloc.ko := arm-linux-ld -EL -r  -T /home/student/linux-2.6.32.2/scripts/module-common.lds --build-id -o /home/student/driver/mem_malloc/mem_malloc.ko /home/student/driver/mem_malloc/mem_malloc.o /home/student/driver/mem_malloc/mem_malloc.mod.o

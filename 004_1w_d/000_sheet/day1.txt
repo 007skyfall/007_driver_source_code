@@ -1,0 +1,274 @@
+ 代     daizs_ck@hqyj.com
+ 
+ 驱动8天大纲
+	1.内核模块
+	2.字符设备驱动
+	3.内核中的竞态
+	4.IO模型（阻塞，非阻塞，IO多路复用，异步通知（信号驱动IO））
+	5.设备树
+	6.中断
+	7.platform
+	8.i2c
+	9.块设备，网卡设备驱动
+	
+1.学习驱动的好处，为什么要学习驱动？
+	驱动：基于软件来操作硬件
+	Arm裸机和驱动的区别？
+	共同点：
+		都能操作硬件
+	不同点：
+	arm裸机是独立运行的，不依附操作系统，只能单任务执行
+	驱动是基于linux内核来执行的，内核会为驱动单独提供入口和出口函数
+	多个驱动可以被应用程序同时执行
+	
+2.linux系统的组成
+应用层：   app  libc                        【0-3G】
+----------------------（系统调用）swi------------------------
+                                            【3-4G】
+内核层：5大功能
+		进程管理：管理的进程的创建，销毁，状态切换，进程间通讯。
+		内存管理：内存的申请、释放、区域划分、内存的映射等。
+		文件管理：通过文件系统，jiffs,yaffs，ramdisk,ext2/ext3/ext4,
+				  来组织管理文件。
+		网络管理：通过tcp 4层模式进而将数据发送给网卡驱动，实现数据的收发
+		设备管理：设备驱动的管理
+			字符设备驱动：是以字节为单位，顺序访问的
+			块设备驱动：它是是以块为单位（扇区为单位）512字节，可以随机访问
+			网卡设备驱动：实现网络数据的收发，以数据包为单位，最大1500字节
+
+--------------------------------------------------------------------
+硬件层：led lcd touchscreen camera mpu6050 u盘  emmc  网卡 猫
+	
+	
+[3]驱动移植过程
+	module.c
+	
+	Makefile   Kconfig    .config
+	1.Kconfig 添加选项菜单
+		config FARSIGHT_MODULE
+			bool   "hello hello hello"
+			#tristate "test test test"
+	2.在内核的顶层目录项执行
+		make menuconfig
+		[*] hello hello hello
+		#<M>test test test
+		
+		Y M N
+	3.查看.config
+		CONFIG_FARSIGHT_MODULE=y
+	
+	4.修改Makefile文件
+		obj-$(CONFIG_FARSIGHT_MODULE) +=module.o
+	
+	5.编译
+		bool--y->make uImage
+		tristate->M->make modules-->module.ko
+		insmod module.ko 安装驱动
+		rmmod  module    卸载驱动
+	
+[4]内核模块
+	内核模块的三要素：（内核模块不会主动执行，也不会自动执行）
+	sudo apt-get install ctags
+	ctags -R
+	终端：vi -t __init
+	文件中：ctrl +]
+			ctrl +t
+	
+	1.入口:资源申请，驱动对象的申请，硬件资源的申请
+	static int __init demo_init(void)
+	 {         //__init告诉编译器，将demo_init放到init.text段
+			  //也可以不写
+	     return 0;
+	 }
+	 module_init(demo_init);
+	2.出口：资源的释放，驱动对象的释放，硬件资源的释放
+	 static void __exit demo_exit(void)
+	 {         //__exit 告诉编译器，将demo_exit放到exit.text段
+			  //也可以不写
+	 }
+     module_exit(demo_exit); 
+	3.许可证：遵从GPL开源的协议
+	  *  "GPL"               [GNU Public License v2 or later]
+	  *  "GPL v2"            [GNU Public License v2]
+	  *  "GPL and additional rights" [GNU Public License v2 rights and more]
+	  *  "Dual BSD/GPL"          [GNU Public License v2
+	  *                   or BSD license choice]
+	  *  "Dual MIT/GPL"          [GNU Public License v2
+	  *                   or MIT license choice]
+	  *  "Dual MPL/GPL"          [GNU Public License v2
+	  *                   or Mozilla license choice]                                                                   
+
+	 19 MODULE_LICENSE("GPL"); 
+
+	  1 #include <linux/init.h>
+	  2 #include <linux/module.h>
+
+
+	Makefile :
+	  1 KERNELDIR:= /lib/modules/$(shell uname -r)/build/
+	  2 #KERNELDIR:= /home/linux/kernel/linux-3.14.1/
+	  //指定内核的路径，如果在ubuntu上执行，写第一个，如果在
+	  板子上执行写第二个
+	  
+	 PWD:=$(shell pwd)
+	 all:
+	     make -C $(KERNELDIR) M=$(PWD) modules
+		//进入内核目录下执行内核的Makefile文件，并
+		//把modules参数传递给它，表示要编译生成.ko模块
+		//编译M指定的内核目录下的模块
+	 clean:
+	     make -C $(KERNELDIR) M=$(PWD) clean
+	 obj-m:=demo.o 
+			//指定编译模块的名字
+
+ 
+		静态编译：把驱动编译到内核中uImage,驱动随内核一起执行
+		动态编译：把驱动编译到uImage外，生成.ko，当ko执行时他需要依赖uImage
+		内部编译：在内核源码树中编译
+		外部编译：在内核源码树外编译
+	
+	
+[5]内核中的打印
+		printk(KERN_DEBUG "Page orders: linear mapping = %d",z);
+		printk("hello.\n");
+		vi -t KERN_DEBUG
+	中打印级别
+	 #define KERN_EMERG  KERN_SOH "0"    /* system is unusable */
+	 #define KERN_ALERT  KERN_SOH "1"    /* action must be taken immediately */
+	 #define KERN_CRIT   KERN_SOH "2"    /* critical conditions */
+	 #define KERN_ERR    KERN_SOH "3"    /* error conditions */                                     
+	 #define KERN_WARNING    KERN_SOH "4"    /* warning conditions */
+	 #define KERN_NOTICE KERN_SOH "5"    /* normal but significant condition */
+	 #define KERN_INFO   KERN_SOH "6"    /* informational */
+	 #define KERN_DEBUG  KERN_SOH "7"    /* debug-level messages */
+
+		<0>----------------------------<7>
+		最高级别                   最低级别
+	
+		消息级别大于终端级别是才可以在终端上显示消息
+		
+		
+	cat /proc/sys/kernel/printk
+		4	          4	                  1	                 7
+		终端级别      消息的默认级别      终端最大级别     终端最小级别
+		su root
+	echo 4 3 1 7 >  /proc/sys/kernel/printk
+
+	 #define console_loglevel (console_printk[0])
+	 #define default_message_loglevel (console_printk[1])
+	 #define minimum_console_loglevel (console_printk[2])
+	 #define default_console_loglevel (console_printk[3])
+
+	
+	
+	进入虚拟终端：
+		ctrl+alt+F1  {F1~F6}
+	退出虚拟终端
+		ctrl+alt+F7
+--------------------------------------------------------------------
+【1】
+	make -C $(KERNELDIR)  M=$(PWD) modules
+	obj-m:=demo.o
+	
+	安装命令：sudo insmod demo.ko
+	卸载命令：sudo rmmod demo
+	查看模块的命令：lsmod
+	ubuntu系统终端查看打印信息的命令：dmesg
+				sudo dmesg -C 直接清除打印信息
+				sudo dmesg -c 回显后清除打印信息
+	查看模块信息：
+				modinfo demo.ko
+				
+				
+				
+	printk(打印级别 "%s",name);
+	printk("%d\n",a);
+	
+	cat /proc/sys/kernel/printk
+	4   3    1   7
+	
+【2】驱动模块多文件编译
+	 obj-m:=hello.o
+	 hello-y+=demo.o add.o    
+	 
+	 练习：
+			1.驱动模块实例
+			2.模块多文件编译实例
+			
+【3】内核模块的传参	
+	
+	 * Standard types are:
+	 *  byte, short, ushort, int, uint, long, ulong(注意没有char类型！！！！！)
+	 *  charp: a character pointer
+	 *  bool: a bool, values 0/1, y/n, Y/N.                                                            
+	 *  invbool: the above, only sense-reversed (N = true).
+
+	module_param(name, type, perm)  
+	功能：内核模块传递参数
+	参数：
+		@name:变量名字
+		@type:类型
+		@perm:权限 0664 0775 (其他用户没有写的权限)
+	
+	MODULE_PARM_DESC(_parm, desc)
+	功能：对参数进行详细的描述，比如功能，值的范围
+	参数：
+		@_parm:要描述的变量名
+		@desc :描述的字段
+	
+	module_param_array(name, type, nump, perm) 
+	功能：接收传递的（整形）数组
+	参数：
+		@name :数组名字
+		@type :类型
+		@nump :用户传递参数的个数
+		@perm :权限
+		
+	module_param_string(name, string, len, perm)  
+	功能：接收传递的（字符）数组
+	参数：
+		@name   :数组名字
+		@string :数组名字
+		@len    :字符数组的长度
+		@perm   :权限
+	
+	模块传递参数的方式：
+		1.
+		sudo insmod demo.ko aa=123 bb=123123 p="hello_driver" ww=11,22,33,44
+		注意：字符指针传递的时候，不能有空格
+		2.
+		当驱动安装之后，会在sys产生相应的文件
+		cd /sys/module/驱动命令的目录/parameters/变量命名的文件
+		可以通过echo cat来操作这些文件
+		
+【4】导出符号表
+		模块和模块之间由于都是运行在3-4G的内核空间，所以一个模块
+		中的函数（变量）可以被另外一个模块使用。只需要将这个函数的符号表
+		导出即可
+		
+		EXPORT_SYMBOL_GPL(add);
+		
+		编译：
+			编译提供者会出现Module.symvers的文件
+			0x72f367e8  add /home/linux/work/day1/module3/A/add EXPORT_SYMBOL_GPL
+			
+			将这个文件拷贝到调用者中，然后编译调用者即可编译成功
+			
+		安装：
+			先安装提供者，在安装调用者
+		卸载：
+			先卸载调用者，在卸载提供者
+作业：
+	1.总结模块和应用程序的区别
+	2.预习字符设备驱动
+		
+		
+		
+		
+		
+		
+		
+		
+	
+	
+	

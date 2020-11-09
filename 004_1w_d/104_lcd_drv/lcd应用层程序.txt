@@ -1,0 +1,104 @@
+1.在设置RGB565格式的时候
+	/*
+		WINCON0
+		bit[15]:开启字节转换空间1
+		bit[5:2]:设置像素格式为RGB565(5)
+		bit[0]:开启图像输出使能1
+	*/
+	*WINCON0 |= (1<<16)|(0<<9)|(0x0101<<2);//(本来想设置为16BPP的，取而代之的设置为了2BPP)
+	
+	0x --是16进制，而应该改为2进制。
+
+	*WINCON0 |= (1<<16)|(0<<9)|(5<<2);
+	
+	这个问题导致的错误就是屏幕上显示的字体非常长的大,今后一定要注意。
+
+2./dev/fb0和/dev/tty0区别
+	a.控制台终端(/dev/ttyn, /dev/console) 　　
+		在Linux 系统中，计算机显示器通常被称为控制台终端 (Console)。它仿真了类型为
+		Linux的一种终端(TERM=Linux)，并且有一些设备特殊文件与之相关联：tty0、tty1、
+		tty2 等。当你在控制台上登录时，使用的是tty1。使用Alt+[F1—F6]组合键时，我们
+		就可以切换到tty2、tty3等上面去。tty1–tty6等称为虚拟终端，而tty0则是当前所使用
+		虚拟终端的一个别名，系统所产生的信息会发送到该终端上（这时也叫控制台终端）。
+		因此不管当前正在使用哪个虚拟终端，系统信息都会发送到控制台终端上。 
+	b./dev/fb0是LCD驱动所对应的设备文件，这是linux内核帮我们关联的我们不需要了解。
+
+	注：那我们什么时候使用fb0，什么时候使用tty1那？
+	对于LCD终端操作的时候，我们就使用tty1这个控制台。如果我们要对LCD进行文件操作，
+	比如open,ioctl，close等，我们就需要操作/dev/fb0。
+
+3.如何配置在lcd和串口上同时显示打印信息
+	1.set bootargs boot=/dev/nfs nfsroot=192.168.1.220:/home/linux/rootfs rw 
+	console=ttySAC2,115200 console=tty1 init=/linuxrc ip=192.168.1.10
+	save
+	注意上面的配置完成之后，启动信息能够在LCD上显示，但是等到了和用户交互的界面
+	还是两边不能做到同时输入
+	2.回想现在系统启动运行在哪一步，你一定会回答rootfs。
+	在/rootfs/etc/这个目录下存在inittable这个文件，我们主需要修改为如下。
+	- tty1::askfirst:-/bin/sh
+	+ tty1::askfirst:-/bin/sh
+    + ttySAC2::askfirst:-/bin/sh
+	现在就可以支持串口和LCD同时显示了。
+
+4.如何在LCD上显示企鹅图片
+	    Device Drivers  --->   
+			Graphics support  ---> 
+				 [*] Bootup logo  ----    选中这一项就可以显示企鹅图片了       
+					
+5.LCD如何刷图片和背景色
+	1.打开设备节点
+		fbfd = open("/dev/fb0",O_RDWR);
+	
+	2.通过ioctl函数读取参数
+		ret = ioctl(fbfd,FBIOGET_VSCREENINFO,&varinfo);
+		printf("xres: %d,yres: %d,bits_per_pixel: %d\n",varinfo->xres,varinfo->yres,varinfo->bits_per_pixel);
+
+	3.使用mmap函数映射空间
+		virtual_addr = (unsigned int *)mmap(NULL, screen_size, PROT_READ|PROT_WRITE, MAP_SHARED,fbfd,0);
+
+	4.向屏幕向写数据
+		for(y=0; y<varinfo.yres; y++)
+		{
+			for(x=0; x<960 ; x++)
+			{
+				long location = (y * varinfo.xres * 2) + x *2;
+				new_rgb.RGB_h = gImage_image[i];
+				new_rgb.RGB_l = gImage_image[i+1];
+				rgb = (new_rgb.RGB_h << 8) | new_rgb.RGB_l;
+
+				*((unsigned short *)(virtual_addr + location)) = rgb;
+				i = i+2;
+			}
+		}
+		
+6.如何制作开机时的企鹅图片
+	a.ubuntu下转换PPM：
+		sudo get-apt install netpbm
+	b.将linuxlogo.png转化为.ppm文件的过程
+		pngtopnm linuxlogo.png > linuxlogo.pnm
+		pnmquant 224 linuxlogo.pnm > linuxlogo224.pnm
+		pnmtoplainpnm linuxlogo224.pnm > linuxlogo224.ppm
+	c.如何配置内核才能显示图片
+		将.ppm图片拷贝到linux-x-xx/drivers/vedio/logo路径下
+		修改makefile和Kconfig文件
+		Makefile：
+			obj-$(CONFIG_LOGO_LINUX_XX_CLUT224)     += logo_linux_xx_clut224.o
+		Kconfig:
+			config LOGO_LINUX_XX_CLUT224
+			 bool "Standard xx 224-color Linux logo"
+			 depends on LOGO
+			 default y
+		在make menuconfig中选中
+	d.修改logo.c文件。
+		extern const struct linux_logo logo_linux_xx_clut224;
+
+		#ifdef CONFIG_LOGO_LINUX_XX_CLUT224
+		  logo = &logo_linux_xx_clut224;
+		#endif
+
+
+
+
+
+
+

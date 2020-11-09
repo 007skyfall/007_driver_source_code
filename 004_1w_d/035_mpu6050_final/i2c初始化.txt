@@ -1,0 +1,42 @@
+1.寄存器地址
+/**********************mpu6050reg********************************/
+#define SMPLRT_DIV 0x19 //采样率分频，典型值： 0x07(125Hz) */  
+#define CONFIG 0x1A // 低通滤波频率，典型值： 0x06(5Hz) */  
+#define GYRO_CONFIG 0x1B // 陀螺仪自检及测量范围，典型值： 0x18(不自检，2000deg/s) */  
+#define ACCEL_CONFIG 0x1C // 加速计自检、测量范围及高通滤波频率，典型值： 0x01(不自检， 2G， 5Hz) */  
+#define ACCEL_XOUT_H 0x3B // 存储最近的 X 轴、 Y 轴、 Z 轴加速度感应器的测量值 */  
+#define ACCEL_XOUT_L 0x3C  
+#define ACCEL_YOUT_H 0x3D  
+#define ACCEL_YOUT_L 0x3E  
+#define ACCEL_ZOUT_H 0x3F  
+#define ACCEL_ZOUT_L 0x40  
+#define TEMP_OUT_H 0x41 // 存储的最近温度传感器的测量值 */  
+#define TEMP_OUT_L 0x42  
+#define GYRO_XOUT_H 0x43 // 存储最近的 X 轴、 Y 轴、 Z 轴陀螺仪感应器的测量值 */  
+#define GYRO_XOUT_L 0x44  
+#define GYRO_YOUT_H 0x45  
+#define GYRO_YOUT_L 0x46  
+#define GYRO_ZOUT_H 0x47  
+#define GYRO_ZOUT_L 0x48  
+#define PWR_MGMT_1 0x6B // 电源管理，典型值： 0x00(正常启用) */  
+#define WHO_AM_I 0x75 //IIC 地址寄存器(默认数值 0x68，只读) */  
+/*****************************************************************/
+
+2.寄存器初始化
+	write_reg(client,PWR_MGMT_1,0x40);  //复位mpu6050
+	write_reg(client,PWR_MGMT_1,0x01);  //唤醒mpu6050
+	write_reg(client,GYRO_CONFIG,0x18);  //设置陀螺仪土2000/s
+	write_reg(client,ACCEL_CONFIG,0x01);
+	write_reg(client,SMPLRT_DIV,0x07);
+	write_reg(client,CONFIG,0x06);
+	
+3.读数据
+	kbuf[0] = read_reg(mpu6050->client,ACCEL_XOUT_H);
+	kbuf[1] = read_reg(mpu6050->client,ACCEL_XOUT_L);
+	kbuf[2] = read_reg(mpu6050->client,ACCEL_YOUT_H);
+	kbuf[3] = read_reg(mpu6050->client,ACCEL_YOUT_L); 
+	kbuf[4] = read_reg(mpu6050->client,ACCEL_ZOUT_H);
+	kbuf[5] = read_reg(mpu6050->client,ACCEL_ZOUT_L);
+	
+	
+	

@@ -1,0 +1,151 @@
+1.电容触摸屏传统的设计中就有感应（Rx）和驱动（Tx）
+答：Rx与Tx其实是分别代表了电容的两极，T与R之间就形成了一个稳定的电容，
+	整个电容屏也就是一个电容。当手指触摸时，手指就相当于第三个导体，
+	当手指接近到一定距离时，就又形成了一个电容，触摸屏控制芯片就是根
+	据这个变化的电容值来判断触摸具体的位置的。
+	
+2.单点触摸和多点触摸
+答：gt818最多支持5点触摸
+
+3.接口
+	i2c_scl3    GPA1_3
+	i2c_sda3    GPA1_2
+	tp_int      gpx0_4    触摸屏中断
+	tp_ioctl    gpx0_3    复位管脚
+	
+4.触摸屏寄存器的设置
+	unsigned char ts_cfg_info[106] = {
+		0x12,0x10,0x0E,0x0C,0x0A,0x08,0x06,0x04,0x02,0x00,0xE0,0x00,0xD0,0x00,
+		0xC0,0x00,0xB0,0x00,0xA0,0x00,0x90,0x00,0x80,0x00,0x70,0x00,0x60,0x00,
+		0x50,0x00,0x40,0x00,0x30,0x00,0x20,0x00,0x10,0x00,0x00,0x00,0xF0,0x00,
+		0x1B,0x03,0x00,0x00,0x00,0x16,0x16,0x16,0x0F,0x0F,0x0A,0x45,0x32,0x05,
+		0x03,0x00,0x05,0x00,0x04,0x58,0x02,0x00,0x00,0x34,0x2C,0x37,0x2E,0x00,
+		0x00,0x14,0x14,0x01,0x0A,0x00,0x00,0x00,0x00,0x00,0x14,0x10,0x00,0x00,
+		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x14,0x1F,0x18,
+		0x1A,0x00,0x00,0x00,0x00,0x00,0x00,0x01
+	};
+
+5.触摸屏设备树
+	ts-gt818{
+		compatible = "fs4412,ts-key";
+		interrupt-parent = <&gpx0>;
+		interrupts = <4 1>;
+		};
+	i2c@13890000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-max-bus-freq = <20000>;
+		pinctrl-0 = <&i2c3_bus>;
+		pinctrl-names = "default";
+		status = "okay";
+
+		ts-gt818@5d {
+			compatible = "ts-gt818";
+			reg = <0x5d>;
+			};
+	};
+
+6.触摸屏多点数据上报
+	请参考内核中Documentation/input/multi-touch-protocol.txt文档
+	翻译请看MT协议.txt文档
+	在 <linux/input.h> 中定义的：
+	#define ABS_MT_SLOT         0x2f    /* MT slot being modified */
+	#define ABS_MT_TOUCH_MAJOR  0x30    /* 触点区域的直径*/
+	#define ABS_MT_TOUCH_MINOR  0x31    /* 辅助表示椭圆形状 */
+	#define ABS_MT_WIDTH_MAJOR  0x32    /* 按压区域的直径 */
+	#define ABS_MT_WIDTH_MINOR  0x33    /* 辅助表示椭圆形状 */
+	#define ABS_MT_ORIENTATION  0x34    /* 椭圆的方位 */
+	#define ABS_MT_POSITION_X   0x35    /* Center X ellipse position */
+	#define ABS_MT_POSITION_Y   0x36    /* Center Y ellipse position */
+	#define ABS_MT_TOOL_TYPE    0x37    /* Type of touching device */
+	#define ABS_MT_BLOB_ID      0x38    /* 触摸点的更多形状 */
+	#define ABS_MT_TRACKING_ID  0x39    /* 跟踪被识别的触摸点 */
+	#define ABS_MT_PRESSURE     0x3a    /* Pressure on contact area */
+	#define ABS_MT_DISTANCE     0x3b    /* Contact hover distance */
+
+	ABS_MT_TOUCH_MAJOR / ABS_MT_WIDTH_MAJOR   //反应的是压力的大小，此值是小于1的。
+	
+	
+	Type A
+		input_mt_sync()  --->SYN_MT_REPORT   //区分不同的点
+		input_sync()
+		
+		上报数据的流程：
+		ABS_MT_POSITION_X x[0]
+		ABS_MT_POSITION_Y y[0]
+		SYN_MT_REPORT
+		ABS_MT_POSITION_X x[1]
+		ABS_MT_POSITION_Y y[1]
+		SYN_MT_REPORT        ------> //如果驱动程序想要附加BTN_TOUCH或者ABS_PRESSURE消息给ABS_MT消息，
+							 ------> //那么最后一个SYN_MT_REPORT消息可以被省略。
+		SYN_REPORT
+		
+	Type B
+		input_mt_slot()  --->SYN_MT_REPORT   //区分不同的点(slot)
+		input_sync()
+		
+		上报数据的流程：
+		ABS_MT_SLOT 0
+		ABS_MT_TRACKING_ID 45
+		ABS_MT_POSITION_X x[0]
+		ABS_MT_POSITION_Y y[0]
+		ABS_MT_SLOT 1
+		ABS_MT_TRACKING_ID 46
+		ABS_MT_POSITION_X x[1]
+		ABS_MT_POSITION_Y y[1]
+		SYN_REPORT
+		
+		移走一个触点的时序:
+		ABS_MT_SLOT 0
+		ABS_MT_TRACKING_ID -1
+		SYN_REPORT
+		
+	区别：
+		①type B协议和type A协议相比，最大的区别是能够识别某一个触摸点，
+		因此能够减少发送给用户空间的数据。要使用slot 区分触摸点，需
+		要使用ABS_MT_TRACKING_ID 这个消息，
+
+		②type A设备的驱动程序，需要一次性将当前触摸屏上的所有触摸点的信息全部上报。
+		上报消息的顺序并不重要，因为消息的过滤和触摸点的跟踪是在用户空间处理的。
+		
+		③type B设备的驱动程序，需要给已经识别的触摸点分配一个slot，
+		并且用这个slot上报这个触摸点的变化信息。
+		通过修改slot的ABS_MT_TRACKING_ID，可以实现新增加、替换，去除触摸点。
+		非负数的 ID 被认为是触摸点， -1 的ID被认为是未使用的slot。
+		一个以前不存在的 ID 出现了表示是一个新的，一个 ID 不存在了表示 删除了。
+		因为只有变化的信息被上报，因此每一个触摸点的完整信息必须放在接收端进行维护。
+		根据接收到的MT（MultiTouch）消息，应用程序更新当前slot的相关属性。
+		
+		
+	填充事件
+	set_bit(EV_ABS,ts->ts_input->evbit);
+	set_bit(EV_KEY,ts->ts_input->evbit);
+	//设置上报的事件值
+	set_bit(BTN_TOUCH,ts->ts_input->keybit);
+	input_mt_init_slots(ts->ts_input,MAX_TOUCH_POINT,0);
+
+	//单点事件
+	input_set_abs_params(ts->ts_input,ABS_X,0,1024,0,0); 
+	input_set_abs_params(ts->ts_input,ABS_Y,0,600,0,0);
+	input_set_abs_params(ts->ts_input,ABS_PRESSURE,0,255,0,0);
+
+	//多点事件
+	input_set_abs_params(ts->ts_input,ABS_MT_TOUCH_MAJOR,0,255,0,0);
+	input_set_abs_params(ts->ts_input,ABS_MT_WIDTH_MAJOR,0,255,0,0);
+	input_set_abs_params(ts->ts_input,ABS_MT_POSITION_X,0,1024,0,0);
+	input_set_abs_params(ts->ts_input,ABS_MT_POSITION_Y,0,600,0,0);
+	input_set_abs_params(ts->ts_input,ABS_MT_TRACKING_ID,0,255,0,0);
+	input_set_abs_params(ts->ts_input,ABS_MT_PRESSURE,0,255,0,0);
+	
+
+	上报事件
+	input_mt_slot(ts->input_dev, id);
+    input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, id);
+    input_report_abs(ts->input_dev, ABS_MT_POSITION_X, x); 
+    input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, y); 
+    input_report_abs(ts->input_dev, ABS_MT_PRESSURE, w);
+
+		
+
+		

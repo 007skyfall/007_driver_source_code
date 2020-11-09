@@ -1,0 +1,270 @@
+【0】复习
+	1.设备树
+		/{
+			node{
+				key = value;
+				led1 = <&gpx1 0 0>  --->内核的帮助文档
+				led0_con = <0x114001e0>;
+				led1_dat = <0x114001e4>
+			};
+			
+			lcd{
+				status = "okay";
+			}
+		};
+		gpio控制器-->gpx1 gpx2 gpa1  gpf2--><&gpx1 0 1>
+												|
+											of_get_named_gpio()
+												|
+									|----------gpio号
+								gpiolib.c
+									|
+								plat-samsung.c(三星底层支持文件)
+									|
+								gpio号---->地址
+											|
+										设置寄存器
+
+	2.gpio子系统
+		gpio_is_valid(led[i])
+		gpio_request(gpio,NULL);
+		gpio_direction_input(gpio);
+		gpio_direction_output(gpio,1);
+		gpio_set_value(gpio,0);
+		gpio_get_value(gpio);
+		
+【1】linux内核的中断
+	补充：中断的类型
+		三类：
+			SPI :共享外设中断，每一个cpu都可以处理这个中断
+			PPI :私有外设中断，这个中断只能固定的cpu处理
+			SGI ：cpu之间通讯的中断
+	
+	
+	根据软中断号，提交中断处理函数
+	int request_irq(unsigned int irq, irq_handler_t handler, 
+		unsigned long flags,const char *name, void *dev)
+	功能：注册中断
+	参数：
+		@irq    :软中断号
+		@handler:中断的处理函数
+		@flags  :中断的触发方式
+			#define IRQF_TRIGGER_RISING	0x00000001
+			#define IRQF_TRIGGER_FALLING	0x00000002
+			#define IRQF_TRIGGER_HIGH	0x00000004
+			#define IRQF_TRIGGER_LOW	0x00000008
+			#define IRQF_DISABLED		0x00000020 
+			//快速中断，处理本中断的时候屏蔽掉其他中断执行
+			#define IRQF_SHARED		0x00000080	
+			//共享中断
+		@name  :名字 cat /proc/interrupts 			
+		@dev   :向中断处理函数中传递的参数
+	返回值：成功0 ，失败返回错误码
+	
+	typedef irqreturn_t (*irq_handler_t)(int, void *);
+	
+	irqreturn_t do_irq(int irqno,void* dev)
+	{
+		//中断里面操作内容
+		return IRQ_HANDLED;
+	}
+	IRQ_NONE		//中断没有处理完成
+	IRQ_HANDLED		//中断正常处理完成了
+	
+	void free_irq(unsigned int irq, void *dev_id)
+	功能：释放中断
+	参数：
+		@irq   :中断号
+		@dev_id:传递的参数
+
+
+	
+【2】软中断号如何获取
+	1、根据gpio号获取软中断号
+	led1 = <&gpx1 0 0>
+	gpio = of_get_named_gpio(node,"led1",0);	
+	
+	int gpio_to_irq(unsigned int gpio);
+	功能：将gpio号转化为软中断号
+	参数：
+		@gpio:gpio号
+	返回值：软中断号
+	
+	2、根据硬件中断号获取软中断号
+	interrupt-controller; //中断控制器，它是空属性
+	interrupt-parent      //执行中断控制器的父节点
+	interrupts            //中断号的描述
+	 <0    ：中断类型：0 是 SPI   1是PPI
+	 24    : 硬件中断号
+	 0>    ：中断的触发方式，（0默认没有触发方式）
+			1 = low-to-high edge triggered
+			2 = high-to-low edge triggered
+			4 = active high level-sensitive
+			8 = active low level-sensitive
+
+	#interrupt-cells = <2>      
+		//在继承这个节点时，中断相关的参数有几个
+
+	
+	<gic>----><gpx1>--<自己的节点>
+	  gic: interrupt-controller@10490000 {
+        compatible = "arm,cortex-a9-gic";
+        #interrupt-cells = <3>;
+        interrupt-controller;
+        reg = <0x10490000 0x1000>, <0x10480000 0x100>;
+    };  
+
+	gpx1: gpx1 {
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		interrupt-controller;
+		interrupt-parent = <&gic>;
+		interrupts = <0 24 0>, <0 25 0>, <0 26 0>, <0 27 0>, 
+				 <0 28 0>, <0 29 0>, <0 30 0>, <0 31 0>; 
+		#interrupt-cells = <2>;
+	};  
+	
+itop4412-key{
+      interrupt-parent = <&gpx1>;
+      interrupts = <1 0>,<2 0>; 
+  };  
+	interrupts = <1 0>,<2 0>;
+		1:调用的是gpx1中的第1个管脚
+		0：触发方式，没设置触发方式
+		2：调用的是gpx1中的第2个管脚
+		0：触发方式，没设置触发方式
+	
+	
+	unsigned int irq_of_parse_and_map(struct device_node *dev, int index)     
+	功能：解析中断的设备树，并且将硬件中断号映射成软中断号
+	参数：
+		@dev  :node设备树的节点
+		@index:第几个
+	返回值：成功返回软中断号，失败错误码
+	
+---------------------------------------------------------------------------------
+下午：	
+【1】内核定时器
+	jiffies:内核时钟节拍数，从系统上电这一个起，这个值一直会增加。
+	根据HZ决定的 CONFIG_HZ=200
+	1/200 = 5ms
+	
+	1.分配对象
+		struct timer_list {
+			unsigned long expires;          //定时的时间
+			void (*function)(unsigned long);//定时器处理函数
+			unsigned long data;             //向定时器处理函数传参
+			//定时器内核链表的操作
+		};
+		struct timer_list mytimer;
+	2.对象初始化
+		mytimer.expries = jiffies + HZ; //定时1s
+		mytimer.function = timer_function;
+		void timer_function(unsigned long data)
+		{
+			
+		}
+		mytimer.data = 0;
+		init_timer(&mytimer);
+		
+	3.对象注册
+		void add_timer(struct timer_list *timer)
+		//注册并启动一次定时器
+		add_timer(&mytimer);
+		注意：定时器只能被注册一次，否则内核崩溃
+	4.再次启动定时
+		int mod_timer(struct timer_list *timer, unsigned long expires)
+	
+	5.删除定时器
+		int del_timer(struct timer_list *timer)
+	
+	练习：(练习到14:40)
+		1.linux内核定时器
+		2.练习使用定时器消抖
+		3.ADC驱动（作业）
+	
+	user : open read  close
+	----------------------------------
+	kernel:
+		driver_read()
+			阻塞
+			ADCDAT
+	
+		中断到来的时候唤醒
+	
+【2】中断底半部
+	在中断顶半部中不能处理相对耗时（算法）或者延时操作，但是
+	随着技术开发过程又想做这些操作，此时就产生矛盾的现象。linux
+	内核就引入了中断底半部，软中断，tasklet，工作队列。
+	
+	软中断和tasklet是工作在中断上下文的。tasklet是基于软中断实现
+		可以做相对耗时操作，不能做延时操作
+		
+		
+	软中断：它是给操作系统使用，软中断号是静态分配的。如果要使用
+	这个号码的话，需要修改内核源码，重新编译内核源码，启动内核源码。
+		1.分配软中断号
+		enum
+		{
+			HI_SOFTIRQ=0,
+			TIMER_SOFTIRQ,
+			NET_TX_SOFTIRQ,
+			NET_RX_SOFTIRQ,
+			BLOCK_SOFTIRQ,
+			BLOCK_IOPOLL_SOFTIRQ,
+			TASKLET_SOFTIRQ,
+			SCHED_SOFTIRQ,
+			HRTIMER_SOFTIRQ,
+			RCU_SOFTIRQ,    /* Preferable RCU should always be the last softirq */
+			FAR_SOFTIRQ,
+			NR_SOFTIRQS
+		};
+		2.注册底半部处理函数
+			void open_softirq(int nr, void (*action)(struct softirq_action *))
+			功能：注册底半部处理函数
+			参数：
+				@nr:FAR_SOFTIRQ
+				@action:底半部处理处理函数
+			
+		3.调用底半部执行
+			void raise_softirq(unsigned int nr)
+			功能：调用底半部执行
+			参数：
+				@nr:FAR_SOFTIRQ
+		
+		
+		编译时：
+		WARNING: "open_softirq" [fs4412_irq.ko] undefined!
+		WARNING: "raise_softirq" [fs4412_irq.ko] undefined!
+		EXPORT_SYMBOL_GPL(open_softirq);
+		EXPORT_SYMBOL_GPL(raise_softirq);
+	
+	tasklet:
+
+	
+	工作队列是工作在进程上下文的。
+		既可做相对耗时操作也可做延时操作
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+
+	
+

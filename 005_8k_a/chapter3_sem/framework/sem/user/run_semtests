@@ -1,0 +1,3 @@
+./sem_test 1 &
+./sem_test 2 &
+./sem_test 3 &

@@ -1,0 +1,246 @@
+【1】内核模块（复习）
+-----------------------------------------------------------------
+功能       |  应用程序             |内核模块
+-----------|-----------------------|-----------------------------
+运行的位置 |    【0-3G】           | 【3-4G】
+-----------|-----------------------|-------------------------------
+执行的方式 |     ./                | insmod xxx.ko
+           |                       | rmmod  xxx
+-----------|-----------------------|-------------------------------
+入口       |    main               | static int __int demo_init();
+           |                       |  module_init(demo_init);
+-----------|-----------------------|--------------------------------
+传参的方式 |  ./a.out 192.168.1.10 |  insmod xx.ko aa=100
+		   | argc argv             | /sys/module/驱动名字/parameters/aa
+		   |                       | module_para() MODULE_PARM_DESC
+-----------|-----------------------|---------------------------------
+导出符号表 |   不能		           | 能 EXPORT_SYMBOL_GPL(函数/变量名字)
+-----------|-----------------------|----------------------------------
+编译的方式 |    gcc                |  Makefile
+-----------|-----------------------|----------------------------------
+
+【2】字符设备驱动			 
+应用层：       open       read      write    close	
+				ls -i -->inode号
+-----------------|------------------------------------------			 		 
+/dev		  文件1         文件2     文件3  （字符设备驱动文件）   
+---------------|------------------------------------------
+内核空间：	   |设备号	 
+			 -----         ----- 
+	--------|fops |------ |	    |-----
+			 -----         -----
+			
+			#include <linux/cdev.h>
+			struct cdev {
+				struct module *owner; //THIS_MODULE
+				const struct file_operations *fops; //操作方法结构体
+				dev_t dev;         //设备号32位 高12位 主  低20位 次
+				unsigned int count; //设备的个数
+			};
+
+			fops{
+				 int (*open)();
+				 int (*read)();
+				 int (*write)();
+				 int (*release)();
+				 
+			 }
+-------------------------------------------------------------------------------			
+
+【3】字符设备驱动的实现
+		1.分配对象
+			struct cdev cdev;
+			struct cdev *pcdev;
+			pcdev = cdev_alloc();
+			
+			struct cdev *cdev_alloc(void)
+			功能：分配cdev内存
+			参数：	
+				@无
+			返回值：成功返回结构体指针，失败返回NULL
+			
+		2.对象初始化
+			 void cdev_init(struct cdev *cdev, 
+				const struct file_operations *fops)
+			功能：cdev初始化
+			参数：
+				@cdev :cdev结构体指针
+				@fops :操作方法结构体
+			:set tags=/home/linux/kernel/linux-3.14.1/tags
+
+		3.设备号的申请
+				MAJOR(dev)   获取主设备号
+				MINOR(dev)   获取次设备号
+				MKDEV(ma,mi) 合成设备号
+
+			静态申请：
+			 int register_chrdev_region(dev_t from, 
+					unsigned count, const char *name)
+			功能：静态申请设备号
+			参数：
+				@from:想申请的设备号的值 
+				@count:设备的个数
+				@name :名字 cat /proc/devices
+			返回值：成功返回0，失败返回错误码
+			
+			vi -t EIO
+			内核中的错误码：
+			 #define EPERM        1  /* Operation not permitted */
+			 #define ENOENT       2  /* No such file or directory */
+			 #define ESRCH        3  /* No such process */
+			 #define EINTR        4  /* Interrupted system call */
+			 #define EIO      5  /* I/O error */
+			 #define ENXIO        6  /* No such device or address */
+			 #define E2BIG        7  /* Argument list too long */
+			 #define ENOEXEC      8  /* Exec format error */
+			 #define EBADF        9  /* Bad file number */
+			 #define ECHILD      10  /* No child processes */
+			 #define EAGAIN      11  /* Try again */
+			 #define ENOMEM      12  /* Out of memory */
+			 #define EACCES      13  /* Permission denied */
+	
+
+			动态申请：
+			int alloc_chrdev_region(dev_t *dev, unsigned baseminor, 
+				unsigned count,const char *name)
+			功能：动态申请设备号
+			参数：
+				@dev      :系统分配的设备号
+				@baseminor:次设备号的起始值
+				@count    :设备的个数
+				@name     :名字 cat /proc/devices
+			返回值：成功返回0，失败返回错误码
+		
+		4.字符设备的注册
+			int cdev_add(struct cdev *p, dev_t dev, unsigned count)
+			功能：字符设备驱动的注册
+			参数：
+				@p    :cdev结构体指针
+				@dev  :设备号
+				@count:设备的个数
+			返回值：成功返回0，失败返回错误码
+			
+			
+	字符设备驱动的注销：
+			void unregister_chrdev_region(dev_t from, unsigned count)
+			功能：设备号的注销
+			参数：
+				@from：设备号的起始值
+				@count:个数
+			void cdev_del(struct cdev *p)
+			功能：注销cdev
+			参数：
+				@p :cdev结构体指针
+
+	创建设备节点：
+		sudo mknod /dev/mycdev(路径和节点名，路径是任意的) 
+				c (c字符设备，b块设备)
+				250 (主设备号) 
+				0 (次设备号)
+				
+	
+	练习：
+		1.字符设备驱动实例
+		2.将字符设备驱动实例在板子上执行
+		
+【4】source insight安装
+
+	1.安装source insight软件
+	2.破解 sn.txt
+	3.将source insight配置.txt文档中的选项赋值到
+		options->Document options->c file ->file filter中添加文档中的内容
+
+	创建索引的过程：
+		project->new project->工程的名字，工程路径
+		->ok->点击linux内核源码->add all->close->同步文件
+		
+		等10即可
+
+
+【5】使用linux内核驱动点灯
+
+应用层：open read write close
+-----------------------------------------------------
+驱动：driver_open driver_read driver_write driver_close
+
+------------------------------------------------------
+硬件： LED1 LED2 ...
+		gpx1_0 con 0x11000c20
+			   dat 0x11000c24
+
+	1.如何将数据从用户空间拷贝到内核空间
+	2.如何将物理地址映射成虚拟地址
+
+【6】数据拷贝的函数
+	#include <linux/uaccess.h>
+	int copy_from_user(void *to, const void __user *from,
+				 unsigned long n)
+	功能：从用户空间向内核空间拷贝数据
+	参数：
+		@to  :内核中内存的地址
+		@from:用户空间的地址
+		@n   :拷贝的字节的个数
+	返回值：成功返回0，失败返回未拷贝的字节的个数
+				 
+	int copy_to_user(void __user *to, const void *from,
+			       unsigned long n)			 
+	功能：从内核空间向用户空间拷贝数据
+	参数：
+		@to  :用户空间内存的地址
+		@from:内核空间的地址
+		@n   :拷贝的字节的个数
+	返回值：成功返回0，失败返回未拷贝的字节的个数			 
+				 
+【7】地址的映射
+	void *ioremap(phys_addr_t offset, unsigned long size)
+	功能：将物理地址映射成虚拟地址
+	参数：
+		@offset :物理地址
+		@size   :映射的长度，以字节为单位
+	返回值：成功返回映射后的虚拟地址，失败NULL
+	
+	void iounmap(void  *addr)
+	功能：取消映射
+	参数：
+		@addr :虚拟地址
+	
+
+	练习：
+		1.使用驱动实现流水灯
+
+	开发板参数设置：
+		set ipaddr 192.168.0.10
+		set serverip 192.168.0.210
+		set bootcmd tftp 0x41000000 uImage\;tftp 0x42000000 exynos4412-fs4412.dtb\;
+		bootm 0x41000000 - 0x42000000
+		set bootargs root=/dev/nfs nfsroot=192.168.0.210:/home/linux/rootfs rw
+		console=ttySAC2,115200 clk_ignore_unused init=/linuxrc ip=192.168.0.10
+		saveenv
+
+
+
+
+
+
+
+
+
+
+
+
+				 
+				 
+				 
+				 
+				 
+				 
+				 
+				 
+				 
+				 
+				 
+
+	
+	
+		
+		

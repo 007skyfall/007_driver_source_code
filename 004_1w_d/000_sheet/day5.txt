@@ -1,0 +1,259 @@
+【1】复习
+	并发和竞态的解决方法：
+		1.顺序
+		2.互斥
+			中断屏蔽
+				local_irq_disable();
+				//临界资源
+				local_irq_enable();
+			自旋锁：
+				api:
+					spinlock_t lock;
+					spin_lock_init();
+					spin_lock();
+					spin_unlock();
+			信号量：
+				struct semaphore sem;
+				sema_init(&sem,1);
+				down();
+				down_trylock();
+				up()
+				
+			互斥体：
+				struct mutex lock;
+				mutex_init();
+				mutex_lock();
+				mutex_trylock();
+				mutex_unlock();
+	
+			原子操作：
+				atomic_t lock = ATOMIC_INIT(-1);
+				atomic_dec_and_test();
+				atomic_inc();
+				atomic_inc_and_test();
+				atomic_dec();
+				
+【2】IO模型
+	非阻塞：当应用层调用read时，不管驱动的数据是否准备好，
+			此时数据都会被返回到用户空间。
+		fd = open("/dev/mycdev",O_RDWR| O_NONBLOCK);
+		read(fd,buf,sizeof(buf));
+		--------------------------------------------
+		驱动的read函数中
+		driver_read(file,)
+		{
+			if(file->f_flags &  O_NONBLOCK){
+				copy_to_user();
+			}
+			
+		}
+		
+		
+			
+	阻塞：当应用层调用read函数的时候，如果驱动的数据没有准备好
+		  此时进程休眠，当数据准备好的时候（硬件中断到来的时候）
+		  此时read函数就能够读取到准确的数据
+		fd = open("/dev/mycdev",O_RDWR);
+		read(fd,buf,sizeof(buf));
+		--------------------------------------------
+		驱动的read函数中
+		driver_read(file,)
+		{
+			if(file->f_flags &  O_NONBLOCK){
+				//非阻塞
+				//return -EINVAL;
+			}else{
+				//阻塞
+				
+				
+			}
+			
+		}
+		
+		实现：#include <linux/sched.h>
+		wait_event(wq, condition)   
+		//切换进程为不可中断的等待态
+		wait_event_interruptible(wq, condition)
+		功能：切换进程为可中断等待态
+		参数：
+			@wq :等待队列头
+			wait_queue_head_t wq; //定义等待队列头
+			init_waitqueue_head(&wq)//初始化等待队列头
+			@condition ：条件 0需要休眠，1不需要休眠
+		返回值：成功0，失败返回错误码
+		
+		
+		write:
+			wake_up(x)	    //唤醒
+			wake_up_interruptible(x)//唤醒
+			condition = 1;
+		
+		练习：
+			1.阻塞代码的实现，要求应用层fork出来两个进程查看结果
+	
+	阻塞的实现过程：
+		1.定义等待队列头
+			wait_queue_head_t wq; 
+		2.初始化等待队列头
+			init_waitqueue_head(&wq)
+		3.定义等待队列项（进程）
+			#define DECLARE_WAITQUEUE(name, tsk)--->current(当前的进程)		
+				wait_queue_t name = __WAITQUEUE_INITIALIZER(name, tsk)
+		
+		4.添加等待队列
+			void add_wait_queue(wait_queue_head_t *q, wait_queue_t *wait);
+			
+		5.切换进程状态
+			set_current_state(state_value) //TASK_INTERRUPTIBLE
+			                               //TASK_UNINTERRUPTIBLE
+		6.主动放弃cpu
+			schedule();
+		进程休眠	
+	-------------------------------------------------------------------------
+		唤醒：	
+			wake_up(x)	    //唤醒
+			wake_up_interruptible(x)//唤醒
+			condition = 1;
+	-------------------------------------------------------------------------		
+		7.判断是否是被信号唤醒的
+			if (signal_pending(current)) {
+				//是被信号唤醒的
+				ret = -ERESTARTSYS;
+			}
+		8.设置进程的状态为运行
+			set_current_state(TASK_RUNNING)
+		9.将数据拷贝到用户空间
+			copy_to_user();
+		
+		10.删除等待队列项
+			remove_wait_queue(&dev->write_wait, &waita);
+			
+		  
+	IO多路复用：当一个app应用程序，需要同时读取多个硬件的数据时，
+		  此时要使用select/poll/epoll函数等待数据准备好，当阻塞
+		  被返回的时候，判读是哪个fd被触发了，此时调用read函数
+		  将数据读回来
+		  
+		  应用层：
+				open("/dev/mycdev1",O_RDWR)
+				open("/dev/mycdev2",O_RDWR)
+				int select(int nfds, fd_set *readfds, fd_set *writefds,
+                  fd_set *exceptfds, struct timeval *timeout); //阻塞
+				select/poll/epoll
+				read() //读取数据
+		 -------------------------------------------------------------------
+		vfs: 休眠的过程猜测是在虚拟文件系统中实现
+				vi -t sys_select（如下）
+		 
+		 -------------------------------------------------------------------
+		  内核层：fops
+			 unsigned int (*poll) (struct file *, struct poll_table_struct *);
+			
+			grep ".poll =" * -nR (搜索内核中poll函数的实现过程)
+			
+			1.定义掩码变量mask
+			2.调用poll_wait  ->（提交等待队列头）调用一个函数（添加等待队列项）
+			3.条件为真设置mask 
+				if(condition){
+					mask |= POLLIN (用户可读)POLLOUT(表示用户可写)
+				}
+			4.返回mask //return mask
+		  
+		  
+		练习：（练习到...........）
+			1.IO多路复用应用程序，驱动程序
+		  
+		
+	vi -t sys_select 调用的过程
+------------------------------------------------------------------------------------	
+	SYSCALL_DEFINE5(select, int, n, fd_set __user *, inp, fd_set __user *, outp,
+        fd_set __user *, exp, struct timeval __user *, tvp) 
+
+		ret = core_sys_select(n, inp, outp, exp, to); to是超时，不关心
+			 fd_set_bits fds; //读表，写表，其他表指针
+			 struct fdtable { <---------在进程的结构体中找到的
+				unsigned int max_fds;
+			};
+			1.根据进程中保存的最大文件描述符来更正用户传递的最大文件描述符
+				fdt = files_fdtable(current->files);
+				max_fds = fdt->max_fds;
+				if (n > max_fds)
+					n = max_fds;
+
+			2.为读，写，其他表分配内存空间
+			    bits = kmalloc(6 * size, GFP_KERNEL);
+				fds.in      = bits;
+				fds.out     = bits +   size;
+				fds.ex      = bits + 2*size;
+				fds.res_in  = bits + 3*size;
+				fds.res_out = bits + 4*size;
+				fds.res_ex  = bits + 5*size;
+				
+				if ((ret = get_fd_set(n, inp, fds.in)) ||-->copy_from_user
+					(ret = get_fd_set(n, outp, fds.out)) ||
+					(ret = get_fd_set(n, exp, fds.ex)))--->将用户空间的表拷贝到内核空间
+				 
+			    zero_fd_set(n, fds.res_in);  //清空res对应的读，写，其他表
+				zero_fd_set(n, fds.res_out); //保存的是准备好的文件描述符集合
+				zero_fd_set(n, fds.res_ex);
+
+
+			ret = do_select(n, &fds, end_time); //检查，处理文件描述符
+			
+			if (set_fd_set(n, inp, fds.res_in) ||//将准备好的文件描述符拷贝到用户空间
+				set_fd_set(n, outp, fds.res_out) ||
+				set_fd_set(n, exp, fds.res_ex))
+
+------------------------------------------------------------------
+	int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
+		struct poll_wqueues {
+			poll_table pt;--->结构体中有函数指针
+			struct task_struct *polling_task;->进程结构体
+		}
+		typedef struct poll_table_struct {
+			poll_queue_proc _qproc;
+		} poll_table;
+		typedef void (*poll_queue_proc)(struct file *,
+			wait_queue_head_t *, struct poll_table_struct *);
+
+		1.找最大文件描述符
+		    retval = max_select_fd(n, fds);
+			if (retval < 0)
+				return retval;
+			n = retval;
+
+		2.构造poll_wqueues
+		void poll_initwait(struct poll_wqueues *pwq)
+		{   
+			init_poll_funcptr(&pwq->pt, __pollwait); //赋值函数指针
+			pwq->polling_task = current;             //赋值进程结构体
+		
+		}
+
+		__pollwait：->添加等待队列项
+		
+		3.遍历文件描述符
+		
+		
+	异步通知：应用层如果想读取数据，只需要在应用层调用信号注册函数
+		  来注册一个信号监听函数。调用应用层接收到信号时就可以调用
+		  read函数将数据读回来
+			
+			
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				

@@ -1,0 +1,224 @@
+【1】复习
+	IO模型：
+		1.非阻塞
+			open("/dev/hello",ORDWR|O_NONBLOCK);
+			read();
+			------------------------------------
+			driver_read(){
+				if(file->f_flags & O_NONBLOCK){
+					copy_to_user();
+				}
+				
+			}
+			
+		2.阻塞
+			open("/dev/hello",ORDWR);
+			read();
+			------------------------------------
+			driver_read(){
+				if(file->f_flags & O_NONBLOCK){
+					return -EINVAL;
+				}else{
+					ret = wait_event_interruptible(&wq,condition);
+					
+				}
+				
+				copy_to_user();
+				
+				
+				condition = 0;
+			}
+			
+			中断处理函数中：
+				wake_up_interruptible();
+				condition = 1;
+
+		3.IO多路复用
+			
+		open();
+		select();
+		read();
+		---------------------------------------
+		sys_select
+		
+		---------------------------------------
+		grep ".poll =" * -nR
+		poll()
+		{
+			1.定义mask=0;
+			2.poll_wait()--->提交等待对列头，在等待队列头上添加等待队列项
+			3.if(condition){mask |= POLLIN};
+			return mask;
+		}
+		
+	vi -t sys_select 调用的过程
+------------------------------------------------------------------------------------	
+	SYSCALL_DEFINE5(select, int, n, fd_set __user *, inp, fd_set __user *, outp,
+        fd_set __user *, exp, struct timeval __user *, tvp) 
+
+		ret = core_sys_select(n, inp, outp, exp, to); to是超时，不关心
+			 fd_set_bits fds; //读表，写表，其他表指针
+			 struct fdtable { <---------在进程的结构体中找到的
+				unsigned int max_fds;
+			};
+			1.根据进程中保存的最大文件描述符来更正用户传递的最大文件描述符
+				fdt = files_fdtable(current->files);
+				max_fds = fdt->max_fds;
+				if (n > max_fds)
+					n = max_fds;
+
+			2.为读，写，其他表分配内存空间
+			    bits = kmalloc(6 * size, GFP_KERNEL);
+				fds.in      = bits;
+				fds.out     = bits +   size;
+				fds.ex      = bits + 2*size;
+				fds.res_in  = bits + 3*size;
+				fds.res_out = bits + 4*size;
+				fds.res_ex  = bits + 5*size;
+				
+				if ((ret = get_fd_set(n, inp, fds.in)) ||-->copy_from_user
+					(ret = get_fd_set(n, outp, fds.out)) ||
+					(ret = get_fd_set(n, exp, fds.ex)))--->将用户空间的表拷贝到内核空间
+				 
+			    zero_fd_set(n, fds.res_in);  //清空res对应的读，写，其他表
+				zero_fd_set(n, fds.res_out); //保存的是准备好的文件描述符集合
+				zero_fd_set(n, fds.res_ex);
+
+
+			ret = do_select(n, &fds, end_time); //检查，处理文件描述符
+			
+			if (set_fd_set(n, inp, fds.res_in) ||//将准备好的文件描述符拷贝到用户空间
+				set_fd_set(n, outp, fds.res_out) ||
+				set_fd_set(n, exp, fds.res_ex))
+
+------------------------------------------------------------------
+	int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
+		struct poll_wqueues {
+			poll_table pt;--->   poll_table结构体
+			struct task_struct *polling_task;->进程结构体
+		}
+		typedef struct poll_table_struct {
+			poll_queue_proc _qproc; -->函数指针
+		} poll_table;
+		typedef void (*poll_queue_proc)(struct file *,
+			wait_queue_head_t *, struct poll_table_struct *);-->函数指针的原型
+-----------------------------------------------------------------------------------
+		 poll_initwait(&table);
+		 init_poll_funcptr(&table->pt, __pollwait);
+			table->pt->_qproc = __pollwait;
+			void __pollwait(struct file *filp, wait_queue_head_t *wait_address,
+                poll_table *p)
+
+			entry->wait_address = wait_address;  //等待队列头
+			add_wait_queue(wait_address, &entry->wait);
+			//在等待队列头上添加等待队列项
+
+
+-----------------------------------------------------------------------------------		
+		这个函数指针是在驱动的poll函数中，调用poll_wait函数时候调用的。
+		poll_wait		
+			p->_qproc(filp, wait_address, p); wait_address--->等待队列头
+
+		
+
+		1.找最大文件描述符
+		    retval = max_select_fd(n, fds);
+			if (retval < 0)
+				return retval;
+			n = retval;
+
+
+		3.遍历文件描述符
+			for (;;) {
+	        inp = fds->in; outp = fds->out; exp = fds->ex;
+			//用户传递递过来的读表，写表，其他表
+			rinp = fds->res_in; routp = fds->res_out; rexp = fds->res_ex;
+			//表中是空的
+			for (i = 0; i < n; ++rinp, ++routp, ++rexp) {
+			
+				for (j = 0; j < BITS_PER_LONG; ++j, ++i, bit <<= 1) {
+			
+			fd-->file-->f_op-->poll-->如果poll存在调用poll函数
+			mask = (*f_op->poll)(f.file, wait);//目的拿到mask值
+			如果mask为0,表示你驱动的数据没有准备好，休眠进程,
+			如果所有驱动对应的mask都为0，也就是说fd被遍历一遍之后
+			结果都为0，此时就会休眠
+			
+			
+			poll_schedule_timeout(&table, TASK_INTERRUPTIBLE,to, slack))
+			//休眠进程
+			
+			
+			被唤醒之后，重新执行for(;;),遍历所有的文件描述符
+			如果有文件描述符的数据准备好了，retval为真，并且
+			将文件描述符放到res_in,res_out,res_ex中，最后跳出循环
+			  if ((mask & POLLIN_SET) && (in & bit)) {
+                        res_in |= bit;
+                        retval++;
+                        wait->_qproc = NULL;
+                    }
+					
+				if (retval || timed_out || signal_pending(current))
+					break;
+
+			
+【1】异步通知
+	异步通知：应用层如果想读取数据，只需要在应用层调用信号注册函数
+		  来注册一个信号监听函数。调用应用层接收到信号时就可以调用
+		  read函数将数据读回来	
+	#include <signal.h>	
+		open("/dev/hello",o_RDWR);	
+   
+		void signal_handle(int num)
+		{
+			read(fd,buf,sizeof(buf));
+		}
+		
+       sighandler_t signal(int signum, signal_handle);
+
+		
+		flags = fcntl(fd,F_GETFL);      //替换fasync();函数
+		fcntl(fd,F_SETFL,flags | FASYNC)
+		
+		fcntl(fd,F_SETOWN,getpid()); //指定信号接受的进程
+	----------------------------------------------------------------
+		vi -t sys_fcntl
+	SYSCALL_DEFINE3(fcntl, unsigned int, fd, unsigned int, cmd, unsigned long, arg)
+	err = do_fcntl(fd, cmd, arg, f.file);
+		switch (cmd) {
+		case F_SETFL:
+			err = setfl(fd, filp, arg);
+			break;	
+			if (((arg ^ filp->f_flags) & FASYNC) && filp->f_op->fasync) {
+				error = filp->f_op->fasync(fd, filp, (arg & FASYNC) != 0);
+
+						
+	----------------------------------------------------------------		
+	kenel:fops
+		fasync()
+		{
+			对信号的初始化
+			int fasync_helper(int fd, struct file * filp, int on,
+				struct fasync_struct **fapp)
+
+		}
+	
+		
+		write:
+		发送信号(如果不指定信号发个哪个进程，所有的进程都会接受信号)
+		void kill_fasync(struct fasync_struct **fp, int sig, int band)
+		
+		
+		grep ".fasync =" * -nR	
+		int fasync_helper(int fd, struct file * filp, int on,
+				struct fasync_struct **fapp)
+		void kill_fasync(struct fasync_struct **fp, int sig, int band)
+
+		kill_fasync(&devp->hd_async_queue, SIGIO, POLL_IN);
+
+		
+		
+	练习：（练习到11:30）
+		1.异步通知驱动和应用程序
+		
+		
